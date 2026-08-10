@@ -1,41 +1,42 @@
 'use client';
 
-// CLIENT — controlado + debounce; propaga para a URL via router.push.
-
-import { useEffect, useMemo, useState } from 'react';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+/**
+ * CLIENT — busca do catálogo.
+ *
+ * Escolhas defensáveis:
+ * - `useState` local para o valor imediato do input (controlled component).
+ * - `useDebouncedValue` (custom hook) para separar o valor "que o usuário digita"
+ *   do valor "que dispara a URL push" — evita 1 request por keystroke.
+ * - `useCatalogUrlState` (custom hook) elimina a duplicação de derivar/atualizar
+ *   filtros a partir de searchParams.
+ * - `useEffect` faz a ponte debounced-value → URL, e sincroniza input quando a
+ *   URL muda externamente (ex.: usuário clica em outra categoria e o SearchBar
+ *   deve espelhar o novo termo se houver).
+ */
+import { useEffect, useState } from 'react';
 import { Input } from '@/components/ui/input';
-import { buildProductsQueryString, mergeQuery, parseProductsQuery } from '../lib';
+import { useCatalogUrlState } from '../use-catalog-url-state';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
 
 const DEBOUNCE_MS = 300;
 
 export function SearchBar() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const sp = useSearchParams();
+  const { query, patch } = useCatalogUrlState();
+  const urlSearch = query.search ?? '';
 
-  const initial = useMemo(
-    () => parseProductsQuery(new URLSearchParams(sp.toString())).search ?? '',
-    [sp],
-  );
-  const [value, setValue] = useState(initial);
+  const [value, setValue] = useState(urlSearch);
+  const debounced = useDebouncedValue(value, DEBOUNCE_MS);
 
-  // Se a URL mudar externamente (ex.: clicar em outra categoria), refletir aqui.
+  // Sincroniza quando a URL muda externamente (ex.: link direto ou reset)
   useEffect(() => {
-    setValue(initial);
-  }, [initial]);
+    setValue(urlSearch);
+  }, [urlSearch]);
 
+  // Propaga debounced → URL. Só chama patch quando o debounced diverge da URL.
   useEffect(() => {
-    const handle = setTimeout(() => {
-      const current = parseProductsQuery(new URLSearchParams(sp.toString()));
-      if ((current.search ?? '') === value) return;
-      const next = mergeQuery(current, { search: value.trim() || undefined });
-      router.replace(`${pathname}${buildProductsQueryString(next)}`, { scroll: false });
-    }, DEBOUNCE_MS);
-    return () => clearTimeout(handle);
-    // Deliberadamente sem `sp` na dep — o efeito lê sp no interior sem re-agendar.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value, pathname, router]);
+    if (debounced === urlSearch) return;
+    patch({ search: debounced.trim() || undefined });
+  }, [debounced, urlSearch, patch]);
 
   return (
     <div className="relative">

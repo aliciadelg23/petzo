@@ -1,11 +1,9 @@
 'use client';
 
-// CLIENT — botões <Link> não seriam pré-navegáveis com preserve-scroll.
-// Usamos router.replace para atualizar só o page= mantendo os demais filtros.
+// CLIENT — navegação de páginas. Preserva demais filtros via useCatalogUrlState.
 
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { buildProductsQueryString, mergeQuery, parseProductsQuery } from '../lib';
 import { Button } from '@/components/ui/button';
+import { useCatalogUrlState } from '../use-catalog-url-state';
 
 interface Props {
   page: number;
@@ -13,17 +11,13 @@ interface Props {
 }
 
 export function Pagination({ page, totalPages }: Props) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const sp = useSearchParams();
+  const { patch } = useCatalogUrlState();
 
   if (totalPages <= 1) return null;
 
   const go = (target: number) => {
     if (target < 1 || target > totalPages) return;
-    const current = parseProductsQuery(new URLSearchParams(sp.toString()));
-    const next = mergeQuery(current, { page: target }, { resetPage: false });
-    router.replace(`${pathname}${buildProductsQueryString(next)}`);
+    patch({ page: target }, { resetPage: false });
   };
 
   return (

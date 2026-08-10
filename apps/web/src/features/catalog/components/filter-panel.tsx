@@ -1,10 +1,17 @@
 'use client';
 
-// CLIENT — filtros: categoria, marca, preço, disponibilidade.
-
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { useState, useEffect } from 'react';
-import { buildProductsQueryString, mergeQuery, parseProductsQuery } from '../lib';
+/**
+ * CLIENT — filtros: categoria, marca, preço, disponibilidade.
+ *
+ * Escolhas defensáveis:
+ * - `useCatalogUrlState` — URL como única fonte da verdade dos filtros.
+ * - `useState` LOCAL para o par (minPrice, maxPrice) do input — evita URL push
+ *   a cada keystroke em campo numérico (aplicar via botão "Aplicar"). Este é
+ *   um caso de "controlled input com commit explícito", diferente do search.
+ * - `useEffect` sincroniza o input local quando a URL muda externamente.
+ */
+import { useEffect, useState } from 'react';
+import { useCatalogUrlState } from '../use-catalog-url-state';
 import type { Brand, Category } from '../types';
 import { Button } from '@/components/ui/button';
 
@@ -14,33 +21,24 @@ interface Props {
 }
 
 export function FilterPanel({ categories, brands }: Props) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const sp = useSearchParams();
-  const current = parseProductsQuery(new URLSearchParams(sp.toString()));
+  const { query, patch } = useCatalogUrlState();
 
-  // Preço tem UX de "aplicar" (evita URL churn durante digitação)
   const [minPrice, setMinPrice] = useState<string>(
-    current.minPrice !== undefined ? String(current.minPrice / 100) : '',
+    query.minPrice !== undefined ? String(query.minPrice / 100) : '',
   );
   const [maxPrice, setMaxPrice] = useState<string>(
-    current.maxPrice !== undefined ? String(current.maxPrice / 100) : '',
+    query.maxPrice !== undefined ? String(query.maxPrice / 100) : '',
   );
 
   useEffect(() => {
-    setMinPrice(current.minPrice !== undefined ? String(current.minPrice / 100) : '');
-    setMaxPrice(current.maxPrice !== undefined ? String(current.maxPrice / 100) : '');
-  }, [current.minPrice, current.maxPrice]);
-
-  const push = (patch: Parameters<typeof mergeQuery>[1]) => {
-    const next = mergeQuery(current, patch);
-    router.replace(`${pathname}${buildProductsQueryString(next)}`, { scroll: false });
-  };
+    setMinPrice(query.minPrice !== undefined ? String(query.minPrice / 100) : '');
+    setMaxPrice(query.maxPrice !== undefined ? String(query.maxPrice / 100) : '');
+  }, [query.minPrice, query.maxPrice]);
 
   const applyPrice = () => {
     const min = minPrice.trim() ? Math.round(Number(minPrice) * 100) : undefined;
     const max = maxPrice.trim() ? Math.round(Number(maxPrice) * 100) : undefined;
-    push({
+    patch({
       minPrice: Number.isFinite(min) ? min : undefined,
       maxPrice: Number.isFinite(max) ? max : undefined,
     });
@@ -56,8 +54,8 @@ export function FilterPanel({ categories, brands }: Props) {
           <li>
             <button
               type="button"
-              className={`text-sm ${current.category ? 'text-neutral-500' : 'font-medium text-brand-600'}`}
-              onClick={() => push({ category: undefined })}
+              className={`text-sm ${query.category ? 'text-neutral-500' : 'font-medium text-brand-600'}`}
+              onClick={() => patch({ category: undefined })}
             >
               Todas
             </button>
@@ -67,9 +65,9 @@ export function FilterPanel({ categories, brands }: Props) {
               <button
                 type="button"
                 className={`text-sm ${
-                  current.category === c.slug ? 'font-medium text-brand-600' : 'text-neutral-700'
+                  query.category === c.slug ? 'font-medium text-brand-600' : 'text-neutral-700'
                 }`}
-                onClick={() => push({ category: c.slug })}
+                onClick={() => patch({ category: c.slug })}
               >
                 {c.name}
               </button>
@@ -82,11 +80,11 @@ export function FilterPanel({ categories, brands }: Props) {
                         <button
                           type="button"
                           className={`text-xs ${
-                            current.category === sub.slug
+                            query.category === sub.slug
                               ? 'font-medium text-brand-600'
                               : 'text-neutral-600'
                           }`}
-                          onClick={() => push({ category: sub.slug })}
+                          onClick={() => patch({ category: sub.slug })}
                         >
                           {sub.name}
                         </button>
@@ -105,8 +103,8 @@ export function FilterPanel({ categories, brands }: Props) {
           <li>
             <button
               type="button"
-              className={`text-sm ${current.brand ? 'text-neutral-500' : 'font-medium text-brand-600'}`}
-              onClick={() => push({ brand: undefined })}
+              className={`text-sm ${query.brand ? 'text-neutral-500' : 'font-medium text-brand-600'}`}
+              onClick={() => patch({ brand: undefined })}
             >
               Todas
             </button>
@@ -116,9 +114,9 @@ export function FilterPanel({ categories, brands }: Props) {
               <button
                 type="button"
                 className={`text-sm ${
-                  current.brand === b.slug ? 'font-medium text-brand-600' : 'text-neutral-700'
+                  query.brand === b.slug ? 'font-medium text-brand-600' : 'text-neutral-700'
                 }`}
-                onClick={() => push({ brand: b.slug })}
+                onClick={() => patch({ brand: b.slug })}
               >
                 {b.name}
               </button>
@@ -159,8 +157,8 @@ export function FilterPanel({ categories, brands }: Props) {
         <label className="flex items-center gap-2 text-sm text-neutral-800">
           <input
             type="checkbox"
-            checked={current.available === true}
-            onChange={(e) => push({ available: e.target.checked || undefined })}
+            checked={query.available === true}
+            onChange={(e) => patch({ available: e.target.checked || undefined })}
           />
           Apenas disponíveis
         </label>
@@ -170,12 +168,14 @@ export function FilterPanel({ categories, brands }: Props) {
         variant="ghost"
         size="sm"
         className="w-full"
-        onClick={() =>
-          router.replace(
-            `${pathname}${buildProductsQueryString({ sort: current.sort, page: 1, limit: current.limit })}`,
-            { scroll: false },
-          )
-        }
+        onClick={() => patch({
+          search: undefined,
+          category: undefined,
+          brand: undefined,
+          minPrice: undefined,
+          maxPrice: undefined,
+          available: undefined,
+        })}
       >
         Limpar filtros
       </Button>
