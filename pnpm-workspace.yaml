@@ -1,3 +1,10 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+# Postinstall scripts permitidos (native builds).
+# sharp: image optimization do Next.js
+# unrs-resolver: resolver nativo usado por eslint/etc.
+allowBuilds:
+  sharp: true
+  unrs-resolver: true
