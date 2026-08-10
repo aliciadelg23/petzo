@@ -34,8 +34,18 @@ export function UserMenu() {
     router.replace('/');
   };
 
+  const isStaff = user.role === 'ADMIN' || user.role === 'STAFF';
+
   return (
     <div className="flex items-center gap-3 text-sm">
+      {isStaff && (
+        <Link
+          href="/admin"
+          className="rounded bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700 hover:bg-brand-100"
+        >
+          Admin
+        </Link>
+      )}
       <Link href="/conta" className="text-neutral-700 transition-colors hover:text-brand-600">
         Olá, {user.name.split(' ')[0]}
       </Link>

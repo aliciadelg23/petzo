@@ -28,6 +28,7 @@ async function swaggerPlugin(app: FastifyInstance) {
         { name: 'brands', description: 'Marcas do catálogo (leitura pública)' },
         { name: 'cart', description: 'Carrinho do usuário autenticado' },
         { name: 'orders', description: 'Pedidos do usuário autenticado + checkout' },
+        { name: 'admin', description: 'Painel administrativo (STAFF/ADMIN)' },
       ],
       components: {
         securitySchemes: {
