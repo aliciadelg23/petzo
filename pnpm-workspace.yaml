@@ -5,6 +5,12 @@ packages:
 # Postinstall scripts permitidos (native builds).
 # sharp: image optimization do Next.js
 # unrs-resolver: resolver nativo usado por eslint/etc.
+# esbuild: usado por tsx/tsup/vitest
+# prisma / @prisma/*: geração do client e engines
 allowBuilds:
   sharp: true
   unrs-resolver: true
+  esbuild: true
+  "@prisma/client": true
+  "@prisma/engines": true
+  prisma: true
