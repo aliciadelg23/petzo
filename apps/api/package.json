@@ -13,10 +13,19 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "clean": "rm -rf dist .turbo node_modules",
     "db:generate": "prisma generate",
     "db:migrate:dev": "prisma migrate dev",
-    "db:studio": "prisma studio"
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:seed": "prisma db seed",
+    "db:reset": "prisma migrate reset --force",
+    "db:studio": "prisma studio",
+    "docker:up": "docker compose -f ../../docker/docker-compose.dev.yml up -d postgres",
+    "docker:down": "docker compose -f ../../docker/docker-compose.dev.yml down"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.1",

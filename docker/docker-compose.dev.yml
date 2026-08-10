@@ -1,0 +1,23 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: petzo-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: petzo
+      POSTGRES_PASSWORD: petzo
+      POSTGRES_DB: petzo
+    ports:
+      # Host 5433 → container 5432 (evita conflito com Postgres local em 5432).
+      - "5433:5432"
+    volumes:
+      - petzo_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U petzo -d petzo"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  petzo_pg_data:
+    name: petzo_pg_data

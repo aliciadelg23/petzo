@@ -27,7 +27,7 @@ const envSchema = z.object({
   DATABASE_URL: z
     .string()
     .url()
-    .default('postgresql://petzo:petzo@localhost:5432/petzo'),
+    .default('postgresql://petzo:petzo@localhost:5433/petzo'),
 
   REDIS_URL: z.string().url().default('redis://localhost:6379'),
 

@@ -6,6 +6,8 @@ export default defineConfig({
     globals: false,
     environment: 'node',
     include: ['src/**/*.{spec,test}.ts'],
+    // Testes de integração (requerem DB) rodam via `test:integration`.
+    exclude: ['**/node_modules/**', 'dist/**', 'src/**/*.integration.spec.ts'],
     env: {
       NODE_ENV: 'test',
     },
