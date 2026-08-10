@@ -20,7 +20,19 @@ async function swaggerPlugin(app: FastifyInstance) {
         version: '0.0.0',
       },
       servers: [{ url: 'http://localhost:3333', description: 'local' }],
-      tags: [{ name: 'health', description: 'Liveness/readiness da API' }],
+      tags: [
+        { name: 'health', description: 'Liveness/readiness da API' },
+        { name: 'auth', description: 'Registro, login, refresh, logout, /me' },
+      ],
+      components: {
+        securitySchemes: {
+          bearerAuth: {
+            type: 'http',
+            scheme: 'bearer',
+            bearerFormat: 'JWT',
+          },
+        },
+      },
     },
     transform: jsonSchemaTransform,
   });

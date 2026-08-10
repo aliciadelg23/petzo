@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { Container } from '@/components/ui/container';
+import { UserMenu } from '@/features/auth/components/user-menu';
 
-// RSC — sem interatividade. Menu mobile (quando existir) virá em Client Component isolado.
+// RSC — sem interatividade. UserMenu é ilha CLIENT isolada.
 
 const NAV = [
   { href: '/', label: 'Início' },
@@ -28,6 +29,7 @@ export function SiteHeader() {
             ))}
           </ul>
         </nav>
+        <UserMenu />
       </Container>
     </header>
   );

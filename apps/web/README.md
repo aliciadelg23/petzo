@@ -69,3 +69,59 @@ Ver `.env.example`. Copiar para `.env.local` no dev:
 ```bash
 cp apps/web/.env.example apps/web/.env.local
 ```
+
+## Autenticação — estratégia de tokens
+
+Toda autenticação passa pela **API REST** (`apps/api`). O web **não** duplica a
+lógica de auth. Estratégia híbrida por par de tokens:
+
+| Token | O que é | Onde vive no browser | TTL | Trocado por |
+|---|---|---|---|---|
+| **Access token** | JWT HS256 assinado pela API. Payload: `{sub, role, email}`. | **Memória** (Zustand, sem persist). Nunca em localStorage/sessionStorage. | 15 min | `Authorization: Bearer <t>` a cada request |
+| **Refresh token** | 32 bytes aleatórios em base64url. A API guarda apenas o hash SHA-256. | **Cookie httpOnly** + `SameSite=Lax` + `Path=/auth` (+ `Secure` em prod). | 7 dias | Cookie enviado automaticamente pelo browser |
+
+### Fluxo
+
+1. `POST /auth/login` (ou `/register`): API responde com `accessToken` no body e
+   `Set-Cookie: petzo_refresh=…; HttpOnly; SameSite=Lax; Path=/auth`.
+2. `lib/http.ts` lê o `accessToken` do store e injeta em todos os requests.
+3. Quando o access expira, a API responde `401`. `lib/http.ts` faz **um único**
+   `POST /auth/refresh` (browser envia o cookie automaticamente) e refaz o request original.
+4. A cada `/auth/refresh`, o servidor **rotaciona** o refresh token (o antigo é marcado
+   como `revokedAt` + `replacedById`, e um novo cookie substitui o anterior). Um
+   replay do antigo cai em `401`.
+5. `POST /auth/logout` revoga o cookie no servidor e limpa localmente.
+
+### Riscos e mitigações
+
+| Ameaça | Como fica mitigada |
+|---|---|
+| **XSS** rouba token de localStorage | Access token nunca sai da memória; F5 zera. Refresh está em cookie `httpOnly` (JS não lê). |
+| **CSRF** contra `/auth/refresh` (só cookie) | `SameSite=Lax` bloqueia POSTs cross-site iniciados por outros domínios (padrão de browser). O cookie tem `Path=/auth`, então nem viaja para outras rotas. Endpoints mutativos com efeito de negócio (`/orders`, etc.) exigem `Bearer` (não só cookie), então CSRF não altera dados sozinho. |
+| **Roubo de refresh + replay** | Rotação em cada uso + campo `replacedById` permite detectar tentativa de replay (extensível para "revogar toda a família" na Fase de segurança). |
+| **Enumeração de usuários** no login | Mensagem `Credenciais inválidas` genérica para email inexistente e senha errada. |
+| **Cookie roubado por MITM** | `Secure` em produção obriga HTTPS. |
+| **Vazamento em log** | Access token não é logado; refresh nem sai do processo do servidor a menos que o browser reenvie o cookie. |
+
+### Riscos assumidos (aceitos para escopo de portfólio)
+
+- Sem **CSRF token duplo** — considerado desnecessário porque endpoints
+  mutativos exigem `Bearer` (não só cookie); o cookie sozinho só serve
+  `/auth/refresh` e `/auth/logout`, cujo impacto é mínimo.
+- Sem **fingerprint do device** — refresh cookie é aceito de qualquer origem
+  autorizada pelo CORS. Melhoria futura: binding a IP/UA + revogação em anomalia.
+- Sem **rate limiting**: virá no plugin de segurança na próxima fase.
+
+## Rotas protegidas
+
+`/conta` (e sub-rotas) usam `<AuthGuard>` no layout (`src/app/conta/layout.tsx`).
+Guard:
+
+1. Bloqueia render até `hydrated=true` (o `<AuthHydrator/>` já rodou `/auth/refresh`)
+2. Se não há user, redireciona para `/entrar?redirect=<pathname>`
+3. Aceita opcional `allowRoles={[…]}` para gates STAFF/ADMIN
+
+Não usamos `middleware.ts` do Next para guardar rotas de UI porque o middleware
+roda no servidor e só enxerga cookies — sem o access token, ele não consegue
+distinguir usuário válido de sessão expirada. O guard client faz o trabalho
+com informação atualizada.

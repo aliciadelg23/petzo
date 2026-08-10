@@ -70,8 +70,24 @@ pnpm --filter @petzo/api db:migrate:dev  # prisma migrate dev
 ## Endpoints
 
 - `GET /health` → `{ "status": "ok" }` (público)
+- `POST /auth/register` → cria CUSTOMER e devolve `{ user, accessToken, accessTokenExpiresIn }` + `Set-Cookie: petzo_refresh`
+- `POST /auth/login` → autentica com email + senha (mesma resposta que register)
+- `POST /auth/refresh` → rotaciona refresh cookie e devolve novo access
+- `POST /auth/logout` → revoga o refresh e limpa o cookie
+- `GET /auth/me` → user autenticado (exige `Authorization: Bearer <access>`)
 - `GET /docs` → Swagger UI (OpenAPI 3.1)
 - `GET /docs/json` → OpenAPI JSON raw
+
+## Autenticação
+
+- **Access token**: JWT HS256, TTL 15 min, contém `{sub, role, email}`.
+- **Refresh token**: 32 bytes aleatórios em base64url, TTL 7 dias. A API armazena
+  apenas o hash SHA-256. Entregue como cookie `petzo_refresh` (`HttpOnly`, `SameSite=Lax`,
+  `Path=/auth`, `Secure` em prod). Rotação em cada `/auth/refresh` com detecção de
+  replay (`RefreshToken.replacedById`).
+- **Senhas**: hashed com argon2id.
+- Roles: `CUSTOMER`, `STAFF`, `ADMIN`. Guardar rota com role: `onRequest: [app.authorize('ADMIN', 'STAFF')]`.
+- Guardar rota sem restrição de role (só logado): `onRequest: [app.authenticate]`.
 
 ## Variáveis de ambiente
 
