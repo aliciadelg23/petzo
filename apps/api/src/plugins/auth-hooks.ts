@@ -7,9 +7,14 @@ import type { AccessTokenPayload } from './jwt';
 // Augment de FastifyInstance para expor `authenticate` e `authorize`.
 declare module 'fastify' {
   interface FastifyInstance {
-    /** Hook: verifica o access token do header Authorization e popula request.currentUser. */
+    /** Hook: exige access token válido. Popula request.currentUser. */
     authenticate: preHandlerAsyncHookHandler;
-    /** Factory: retorna um hook que exige uma das roles. Aplica `authenticate` implicitamente. */
+    /**
+     * Hook: se houver Bearer válido popula currentUser, mas NÃO falha se ausente.
+     * Útil em rotas públicas cujo comportamento muda para STAFF/ADMIN.
+     */
+    optionalAuthenticate: preHandlerAsyncHookHandler;
+    /** Factory: exige uma das roles. Aplica authenticate implicitamente. */
     authorize: (...roles: RoleName[]) => preHandlerAsyncHookHandler;
   }
   interface FastifyRequest {
@@ -31,6 +36,17 @@ async function authHooksPlugin(app: FastifyInstance) {
     await verifyAndSet(request);
   };
 
+  const optionalAuthenticate: preHandlerAsyncHookHandler = async (request, _reply) => {
+    const header = request.headers.authorization;
+    if (!header) return;
+    try {
+      await request.jwtVerify();
+      request.currentUser = request.user as AccessTokenPayload;
+    } catch {
+      // silencioso — rota funciona como pública quando token é inválido
+    }
+  };
+
   const authorize = (...roles: RoleName[]): preHandlerAsyncHookHandler => {
     return async (request, _reply) => {
       if (!request.currentUser) {
@@ -44,6 +60,7 @@ async function authHooksPlugin(app: FastifyInstance) {
   };
 
   app.decorate('authenticate', authenticate);
+  app.decorate('optionalAuthenticate', optionalAuthenticate);
   app.decorate('authorize', authorize);
 }
 

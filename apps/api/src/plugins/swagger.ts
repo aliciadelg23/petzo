@@ -23,6 +23,9 @@ async function swaggerPlugin(app: FastifyInstance) {
       tags: [
         { name: 'health', description: 'Liveness/readiness da API' },
         { name: 'auth', description: 'Registro, login, refresh, logout, /me' },
+        { name: 'products', description: 'Catálogo de produtos (leitura pública; escrita STAFF/ADMIN)' },
+        { name: 'categories', description: 'Categorias do catálogo (leitura pública)' },
+        { name: 'brands', description: 'Marcas do catálogo (leitura pública)' },
       ],
       components: {
         securitySchemes: {
