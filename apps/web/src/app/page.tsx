@@ -21,8 +21,8 @@ export default function HomePage() {
             rápida em todo o Brasil.
           </p>
           <div className="flex flex-wrap gap-3">
-            <Link href="/loja">
-              <Button size="lg">Explorar loja</Button>
+            <Link href="/products">
+              <Button size="lg">Ver produtos</Button>
             </Link>
             <Link href="/sobre">
               <Button size="lg" variant="outline">

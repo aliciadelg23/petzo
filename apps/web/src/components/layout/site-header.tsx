@@ -6,7 +6,7 @@ import { UserMenu } from '@/features/auth/components/user-menu';
 
 const NAV = [
   { href: '/', label: 'Início' },
-  { href: '/loja', label: 'Loja' },
+  { href: '/products', label: 'Produtos' },
   { href: '/sobre', label: 'Sobre' },
 ] as const;
 
