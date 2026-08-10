@@ -35,6 +35,15 @@ const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string().min(1).default('change-me-in-production'),
   JWT_ACCESS_TTL: z.string().default('15m'),
   JWT_REFRESH_TTL: z.string().default('7d'),
+
+  /**
+   * Estratégia do motor de recomendação. Valores futuros:
+   *   `ml`         → serviço interno de machine learning
+   *   `external`   → integração externa (Amazon Personalize, etc.)
+   *   `ai`         → geração via LLM
+   * Trocar aqui NÃO altera a API pública (endpoint + response shape).
+   */
+  RECOMMENDATION_ENGINE: z.string().default('rules-v1'),
 });
 
 const parsed = envSchema.safeParse(process.env);

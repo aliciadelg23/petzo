@@ -146,6 +146,9 @@ model Pet {
   species   Species
   breed     String?
   birthDate DateTime?
+  /// Peso em quilogramas. Opcional — usado por regras de recomendação para
+  /// mapear "porte" (pequeno/médio/grande) sem médico especialista.
+  weight    Float?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
