@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Container } from '@/components/ui/container';
 import { UserMenu } from '@/features/auth/components/user-menu';
+import { CartBadge } from '@/features/cart/components/cart-badge';
 
 // RSC — sem interatividade. UserMenu é ilha CLIENT isolada.
 
@@ -29,7 +30,10 @@ export function SiteHeader() {
             ))}
           </ul>
         </nav>
-        <UserMenu />
+        <div className="flex items-center gap-4">
+          <CartBadge />
+          <UserMenu />
+        </div>
       </Container>
     </header>
   );

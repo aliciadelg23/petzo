@@ -9,6 +9,7 @@ import {
   BreadcrumbJsonLd,
   ProductJsonLd,
 } from '@/features/catalog/components/product-json-ld';
+import { AddToCartButton } from '@/features/cart/components/add-to-cart-button';
 import { HttpError } from '@/lib/errors';
 import { env } from '@/config/env';
 
@@ -161,6 +162,8 @@ export default async function ProductPage({ params }: Props) {
             </div>
 
             <p className="whitespace-pre-line text-neutral-700">{product.description}</p>
+
+            <AddToCartButton productId={product.id} disabled={!product.available} />
 
             <dl className="grid grid-cols-2 gap-3 border-t border-neutral-200 pt-4 text-sm">
               <div>
