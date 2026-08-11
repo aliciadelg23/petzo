@@ -25,15 +25,13 @@ export class CartService {
 
     await this.assertStock(input.productId, newQty);
 
-    if (existing) {
-      await this.repo.updateItemQuantity(existing.id, newQty);
-    } else {
-      await this.repo.createItem({
-        cartId: cart.id,
-        productId: input.productId,
-        quantity: input.quantity,
-      });
-    }
+    // `upsert` cobre a corrida entre dois cliques rápidos: sem ele, o INSERT
+    // do segundo fluxo estoura o unique(cartId,productId) e vira 500.
+    await this.repo.upsertItem({
+      cartId: cart.id,
+      productId: input.productId,
+      quantity: newQty,
+    });
 
     return this.getMyCart(userId);
   }

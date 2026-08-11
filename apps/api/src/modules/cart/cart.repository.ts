@@ -56,6 +56,22 @@ export class CartRepository {
     return this.prisma.cartItem.update({ where: { id }, data: { quantity } });
   }
 
+  /**
+   * Idempotente contra corrida de duplicata: dois `addItem` simultâneos para
+   * o mesmo (cart, product) geram somente 1 linha — a segunda chamada cai no
+   * ramo `update` do upsert. Respeita `@@unique([cartId, productId])`.
+   *
+   * `set:` (não `increment`) porque o service já validou o estoque com a
+   * quantidade DESEJADA final (existing.quantity + input.quantity).
+   */
+  upsertItem(input: { cartId: string; productId: string; quantity: number }) {
+    return this.prisma.cartItem.upsert({
+      where: { cartId_productId: { cartId: input.cartId, productId: input.productId } },
+      create: input,
+      update: { quantity: input.quantity },
+    });
+  }
+
   deleteItem(id: string) {
     return this.prisma.cartItem.delete({ where: { id } });
   }
