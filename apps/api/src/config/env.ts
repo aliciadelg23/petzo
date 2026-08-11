@@ -9,7 +9,12 @@ import { z } from 'zod';
  */
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
+  // Pino aceita 'silent' como nível válido (desliga o logger).
+  // Nosso workflow de CI usa `silent` para não poluir a saída dos jobs de
+  // teste; sem esse valor no enum o boot da API falhava em CI.
+  LOG_LEVEL: z
+    .enum(['silent', 'fatal', 'error', 'warn', 'info', 'debug', 'trace'])
+    .default('info'),
 
   API_PORT: z.coerce.number().int().positive().default(3333),
   API_HOST: z.string().default('0.0.0.0'),
