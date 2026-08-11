@@ -6,22 +6,24 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Container } from '@/components/ui/container';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { FormField } from '@/components/ui/form-field';
 import { useCartQuery } from '@/features/cart/hooks';
 import { useCheckoutMutation } from '@/features/orders/hooks';
 import { formatBRL } from '@/features/catalog/lib';
 import { checkoutFormSchema, type CheckoutFormValues } from '@/features/checkout/schemas';
+import { useToast } from '@/hooks/use-toast';
 import { HttpError } from '@/lib/errors';
 
 export default function CheckoutPage() {
   const router = useRouter();
   const cart = useCartQuery();
   const checkout = useCheckoutMutation();
+  const { toast } = useToast();
 
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-    setError,
   } = useForm<CheckoutFormValues>({
     resolver: zodResolver(checkoutFormSchema),
     defaultValues: {
@@ -46,13 +48,11 @@ export default function CheckoutPage() {
       });
       router.replace(`/checkout/sucesso/${order.id}`);
     } catch (err) {
-      if (HttpError.isHttpError(err)) {
-        if (err.status === 400 || err.status === 409) {
-          setError('root', { message: err.message });
-          return;
-        }
-      }
-      setError('root', { message: 'Não foi possível concluir o pedido.' });
+      const msg =
+        HttpError.isHttpError(err) && (err.status === 400 || err.status === 409)
+          ? err.message
+          : 'Não foi possível concluir o pedido.';
+      toast({ kind: 'error', message: msg });
     }
   };
 
@@ -78,45 +78,45 @@ export default function CheckoutPage() {
           <section className="rounded-lg border border-neutral-200 bg-white p-4">
             <h2 className="text-sm font-semibold text-neutral-900">Endereço de entrega</h2>
             <div className="mt-3 grid grid-cols-2 gap-3">
-              <Field label="Rótulo" error={errors.label?.message}>
+              <FormField label="Rótulo" error={errors.label?.message}>
                 <Input {...register('label')} placeholder="Casa" />
-              </Field>
-              <Field label="CEP" error={errors.zip?.message}>
+              </FormField>
+              <FormField label="CEP" error={errors.zip?.message}>
                 <Input {...register('zip')} placeholder="00000-000" />
-              </Field>
+              </FormField>
               <div className="col-span-2">
-                <Field label="Rua" error={errors.street?.message}>
+                <FormField label="Rua" error={errors.street?.message}>
                   <Input {...register('street')} />
-                </Field>
+                </FormField>
               </div>
-              <Field label="Número" error={errors.number?.message}>
+              <FormField label="Número" error={errors.number?.message}>
                 <Input {...register('number')} />
-              </Field>
-              <Field label="Complemento" error={errors.complement?.message}>
+              </FormField>
+              <FormField label="Complemento" error={errors.complement?.message}>
                 <Input {...register('complement')} />
-              </Field>
-              <Field label="Bairro" error={errors.district?.message}>
+              </FormField>
+              <FormField label="Bairro" error={errors.district?.message}>
                 <Input {...register('district')} />
-              </Field>
-              <Field label="Cidade" error={errors.city?.message}>
+              </FormField>
+              <FormField label="Cidade" error={errors.city?.message}>
                 <Input {...register('city')} />
-              </Field>
-              <Field label="UF" error={errors.state?.message}>
+              </FormField>
+              <FormField label="UF" error={errors.state?.message}>
                 <Input {...register('state')} maxLength={2} />
-              </Field>
+              </FormField>
             </div>
           </section>
 
           <section className="rounded-lg border border-neutral-200 bg-white p-4">
             <h2 className="text-sm font-semibold text-neutral-900">Cupom</h2>
             <div className="mt-3 grid grid-cols-1 gap-3">
-              <Field
+              <FormField
                 label="Código (opcional)"
                 error={errors.couponCode?.message}
                 hint="Ex.: BEMVINDO10 (10% off em compras a partir de R$50)"
               >
                 <Input {...register('couponCode')} placeholder="CÓDIGO" />
-              </Field>
+              </FormField>
             </div>
           </section>
         </div>
@@ -134,12 +134,6 @@ export default function CheckoutPage() {
               </p>
             </dl>
 
-            {errors.root && (
-              <p role="alert" className="mt-3 text-sm text-red-600">
-                {errors.root.message}
-              </p>
-            )}
-
             <Button type="submit" size="lg" className="mt-4 w-full" disabled={isSubmitting}>
               {isSubmitting ? 'Finalizando…' : 'Finalizar compra'}
             </Button>
@@ -147,28 +141,5 @@ export default function CheckoutPage() {
         </aside>
       </form>
     </Container>
-  );
-}
-
-function Field({
-  label,
-  hint,
-  error,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  error?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-1">
-      <label className="block text-xs font-medium uppercase tracking-wide text-neutral-600">
-        {label}
-      </label>
-      {children}
-      {hint && !error && <p className="text-xs text-neutral-500">{hint}</p>}
-      {error && <p className="text-xs text-red-600">{error}</p>}
-    </div>
   );
 }

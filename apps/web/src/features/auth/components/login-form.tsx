@@ -1,5 +1,18 @@
 'use client';
 
+/**
+ * CLIENT — form de login.
+ *
+ * Escolhas defensáveis:
+ * - RHF + zodResolver: forms são domínio de RHF; sem reinventar rodinha.
+ * - `FormField` (composição): substitui a duplicação label+input+erro.
+ * - `useRef<HTMLInputElement>` + `useEffect(() => ref.current?.focus(), [])`:
+ *   autofocus no primeiro campo é UX real. `autoFocus` no JSX é anti-pattern
+ *   em Next porque pode rodar antes do JS hidratar; ref no efeito garante
+ *   focus só após hidratação client.
+ * - `useToast()` centraliza feedback de erro (removeu setError('root') local).
+ */
+import { useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -7,58 +20,64 @@ import { loginFormSchema, type LoginFormValues } from '../schemas';
 import { useLoginMutation } from '../hooks';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { FormField } from '@/components/ui/form-field';
+import { useToast } from '@/hooks/use-toast';
 import { HttpError } from '@/lib/errors';
 
 export function LoginForm() {
   const router = useRouter();
   const search = useSearchParams();
   const redirect = search.get('redirect') ?? '/conta';
+  const { toast } = useToast();
+  const login = useLoginMutation();
+
+  const emailRef = useRef<HTMLInputElement | null>(null);
 
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-    setError,
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
     defaultValues: { email: '', password: '' },
   });
 
-  const mutation = useLoginMutation();
+  useEffect(() => {
+    emailRef.current?.focus();
+  }, []);
 
   const onSubmit = async (values: LoginFormValues) => {
     try {
-      await mutation.mutateAsync(values);
+      await login.mutateAsync(values);
       router.replace(redirect);
     } catch (err) {
       if (HttpError.isHttpError(err) && err.status === 401) {
-        setError('root', { message: 'Email ou senha incorretos.' });
+        toast({ kind: 'error', message: 'Email ou senha incorretos.' });
       } else {
-        setError('root', { message: 'Não foi possível entrar. Tente novamente.' });
+        toast({ kind: 'error', message: 'Não foi possível entrar. Tente novamente.' });
       }
     }
   };
 
+  const emailReg = register('email');
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-      <div className="space-y-1">
-        <label htmlFor="email" className="block text-sm font-medium text-neutral-800">
-          Email
-        </label>
+      <FormField label="Email" htmlFor="email" error={errors.email?.message}>
         <Input
           id="email"
           type="email"
           autoComplete="email"
           aria-invalid={!!errors.email}
-          {...register('email')}
+          {...emailReg}
+          ref={(node) => {
+            emailReg.ref(node);
+            emailRef.current = node;
+          }}
         />
-        {errors.email && <p className="text-xs text-red-600">{errors.email.message}</p>}
-      </div>
+      </FormField>
 
-      <div className="space-y-1">
-        <label htmlFor="password" className="block text-sm font-medium text-neutral-800">
-          Senha
-        </label>
+      <FormField label="Senha" htmlFor="password" error={errors.password?.message}>
         <Input
           id="password"
           type="password"
@@ -66,14 +85,7 @@ export function LoginForm() {
           aria-invalid={!!errors.password}
           {...register('password')}
         />
-        {errors.password && <p className="text-xs text-red-600">{errors.password.message}</p>}
-      </div>
-
-      {errors.root && (
-        <p role="alert" className="text-sm text-red-600">
-          {errors.root.message}
-        </p>
-      )}
+      </FormField>
 
       <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
         {isSubmitting ? 'Entrando…' : 'Entrar'}

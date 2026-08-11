@@ -1,13 +1,18 @@
 'use client';
 
-// CLIENT — ilha interativa embutida na página RSC de detalhe do produto.
-
+/**
+ * CLIENT — ilha interativa embutida na página RSC de detalhe do produto.
+ *
+ * Decisão: feedback vira TOAST via Context (não mais state local).
+ * Antes: cada consumidor de mutation mantinha `message` em useState — 4+ cópias
+ * do mesmo padrão. Agora um único hook `useToast()` cuida disso.
+ */
 import { useRouter } from 'next/navigation';
 import { useAddToCartMutation } from '../hooks';
 import { useAuthStore } from '@/features/auth/store';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 import { HttpError } from '@/lib/errors';
-import { useState } from 'react';
 
 interface Props {
   productId: string;
@@ -18,36 +23,28 @@ export function AddToCartButton({ productId, disabled }: Props) {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const mutation = useAddToCartMutation();
-  const [message, setMessage] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const onClick = async () => {
     if (!user) {
       router.push(`/entrar?redirect=/products`);
       return;
     }
-    setMessage(null);
     try {
       await mutation.mutateAsync({ productId, quantity: 1 });
-      setMessage('Adicionado ao carrinho ✓');
+      toast({ kind: 'success', message: 'Adicionado ao carrinho.' });
     } catch (err) {
       if (HttpError.isHttpError(err) && err.status === 409) {
-        setMessage(err.message);
+        toast({ kind: 'error', message: err.message });
       } else {
-        setMessage('Não foi possível adicionar.');
+        toast({ kind: 'error', message: 'Não foi possível adicionar.' });
       }
     }
   };
 
   return (
-    <div className="space-y-2">
-      <Button size="lg" onClick={onClick} disabled={disabled || mutation.isPending}>
-        {mutation.isPending ? 'Adicionando…' : 'Adicionar ao carrinho'}
-      </Button>
-      {message && (
-        <p role="status" className="text-sm text-neutral-700">
-          {message}
-        </p>
-      )}
-    </div>
+    <Button size="lg" onClick={onClick} disabled={disabled || mutation.isPending}>
+      {mutation.isPending ? 'Adicionando…' : 'Adicionar ao carrinho'}
+    </Button>
   );
 }

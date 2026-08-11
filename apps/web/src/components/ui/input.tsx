@@ -1,10 +1,17 @@
-import type { InputHTMLAttributes } from 'react';
+import type { InputHTMLAttributes, Ref } from 'react';
 import { cn } from '@/lib/utils';
 
 // RSC-friendly — apenas markup. Consumidores clientes lidam com eventos.
-export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
+// `ref` é aceito como prop normal (React 19).
+
+interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+  ref?: Ref<HTMLInputElement>;
+}
+
+export function Input({ className, ref, ...props }: InputProps) {
   return (
     <input
+      ref={ref}
       className={cn(
         'h-10 w-full rounded-md border border-neutral-300 bg-white px-3 text-sm text-neutral-900',
         'placeholder:text-neutral-400',
