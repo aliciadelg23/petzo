@@ -4,6 +4,25 @@ Todas as mudanças notáveis são registradas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.0.5] — 2026-08-11
+
+### Corrigido
+
+- **`cache.integration.spec.ts` — URL do Redis hardcoded**: a raiz real
+  dos 4 testes de cache falhando em CI desde a integração da 1.0.0.
+  O spec instanciava `new RedisCache('redis://localhost:6380')` com a
+  URL fixa em código — a porta 6380 é a do docker-compose de dev
+  local. No CI o Redis está em `127.0.0.1:6379` (via env), então
+  `ioredis` tentava conectar num endpoint inexistente, ficava preso
+  na offline-queue e os comandos falhavam silenciosamente com
+  `[cache] redis error (degrading to miss):` de mensagem vazia,
+  causando 2 asserts errados e 2 timeouts de 15s. Substituído por
+  `env.REDIS_URL` — passa a respeitar cada ambiente.
+
+  Os hotfixes 1.0.3 (seed + readiness Redis) e 1.0.4 (localhost →
+  127.0.0.1) resolveram problemas reais adjacentes mas não este —
+  eram fixes no `validate.yml`, e este spec ignorava o env inteiro.
+
 ## [1.0.4] — 2026-08-11
 
 ### Corrigido
