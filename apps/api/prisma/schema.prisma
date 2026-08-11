@@ -64,8 +64,7 @@ enum PaymentProvider {
 enum SubscriptionStatus {
   ACTIVE
   PAUSED
-  CANCELED
-  EXPIRED
+  CANCELLED
 }
 
 enum SubscriptionFrequency {

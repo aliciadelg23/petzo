@@ -8,6 +8,9 @@ import { recommendationRoutes } from './recommendations/recommendation.routes';
 import { adminRoutes } from './admin/admin.routes';
 import { petRoutes } from './pets/pet.routes';
 import { wishlistRoutes } from './wishlist/wishlist.routes';
+import { reviewRoutes } from './reviews/review.routes';
+import { couponRoutes } from './coupons/coupon.routes';
+import { subscriptionRoutes } from './subscriptions/subscription.routes';
 
 /**
  * Registra todos os módulos de domínio da API.
@@ -22,4 +25,7 @@ export async function registerModules(app: FastifyInstance) {
   await app.register(adminRoutes);
   await app.register(petRoutes);
   await app.register(wishlistRoutes);
+  await app.register(reviewRoutes);
+  await app.register(couponRoutes);
+  await app.register(subscriptionRoutes);
 }

@@ -36,6 +36,9 @@ async function swaggerPlugin(app: FastifyInstance) {
         { name: 'admin', description: 'Painel administrativo (STAFF/ADMIN)' },
         { name: 'pets', description: 'CRUD de pets do usuário autenticado' },
         { name: 'wishlist', description: 'Wishlist (favoritos) do usuário autenticado' },
+        { name: 'reviews', description: 'Reviews de produtos (compra prévia obrigatória)' },
+        { name: 'coupons', description: 'Validação (auth) + gestão admin de cupons' },
+        { name: 'subscriptions', description: 'Assinaturas recorrentes (sem cobrança real)' },
       ],
       components: {
         securitySchemes: {
