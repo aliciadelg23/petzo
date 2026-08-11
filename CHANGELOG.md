@@ -4,6 +4,30 @@ Todas as mudanças notáveis são registradas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.0.3] — 2026-08-11
+
+### Corrigido
+
+- **CI — seed ausente**: o job `test` do `.github/workflows/validate.yml`
+  rodava `prisma migrate deploy` mas não `prisma db seed`. Como resultado,
+  o Postgres do runner ficava com o schema criado mas VAZIO — todos os
+  specs de integração dependiam de usuários/roles/produtos do fixture e
+  falhavam em cascata (login "Credenciais inválidas" em 9 arquivos,
+  `RoleName.CUSTOMER` inexistente, `findFirstOrThrow()` estourando).
+  Adicionado `pnpm --filter @petzo/api exec prisma db seed` após o migrate.
+- **CI — Redis readiness**: os specs `cache.integration.spec.ts` que
+  exercitam Redis real degradavam para MISS silenciosa porque o primeiro
+  `set()` do ioredis rodava antes do container terminar o boot completo.
+  Adicionado step "Wait for Redis service (readiness)" que instala
+  `redis-tools` e loopa `redis-cli ping` até responder `PONG`
+  (30 tentativas × 2s = 60s de janela).
+- **`stock-concurrency.integration.spec.ts` — afterAll defensivo**:
+  quando `beforeAll` falhava (ex.: seed ausente → login falha), o
+  `afterAll` chamava `prisma.inventory.update({ where: { productId: undefined }})`
+  e estourava com `PrismaClientValidationError`. Guard adicionado:
+  se `productId` não foi atribuído, pula a restauração silenciosamente
+  (o erro real já vem do `beforeAll`).
+
 ## [1.0.2] — 2026-08-11
 
 ### Corrigido
