@@ -1,6 +1,7 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
+import rateLimit from '@fastify/rate-limit';
 import sensible from '@fastify/sensible';
 import {
   serializerCompiler,
@@ -53,6 +54,24 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Segurança / headers
   await app.register(helmet, { global: true });
+
+  // Rate-limit global. Rotas de auth aplicam limites mais estritos localmente
+  // via `config.rateLimit`. Desligado em `test` para não flakear specs em
+  // rajada dentro do mesmo processo (Fastify em Vitest reusa a instância).
+  if (env.NODE_ENV !== 'test') {
+    await app.register(rateLimit, {
+      global: true,
+      max: 300,
+      timeWindow: '1 minute',
+      // Chave por IP; identifica login/register/refresh por email na rota.
+      keyGenerator: (req) => req.ip,
+      addHeaders: {
+        'x-ratelimit-limit': true,
+        'x-ratelimit-remaining': true,
+        'x-ratelimit-reset': true,
+      },
+    });
+  }
 
   // CORS
   await app.register(cors, {

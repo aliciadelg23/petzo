@@ -40,8 +40,12 @@ const envSchema = z.object({
     .transform((v) => (typeof v === 'boolean' ? v : v === 'true'))
     .default(true),
 
-  JWT_ACCESS_SECRET: z.string().min(1).default('change-me-in-production'),
-  JWT_REFRESH_SECRET: z.string().min(1).default('change-me-in-production'),
+  // Em dev o default corre; em produção o guardrail abaixo exige rotação.
+  // 32 bytes é o mínimo para HS256 (256 bits de entropia). Zod só barra
+  // secrets tecnicamente inválidos; a decisão "não é o placeholder" fica
+  // no guardrail de produção.
+  JWT_ACCESS_SECRET: z.string().min(32, 'JWT_ACCESS_SECRET precisa de pelo menos 32 caracteres').default('change-me-in-production-please-rotate-32b'),
+  JWT_REFRESH_SECRET: z.string().min(32, 'JWT_REFRESH_SECRET precisa de pelo menos 32 caracteres').default('change-me-in-production-please-rotate-32b'),
   JWT_ACCESS_TTL: z.string().default('15m'),
   JWT_REFRESH_TTL: z.string().default('7d'),
 
@@ -66,14 +70,16 @@ if (!parsed.success) {
 export const env = parsed.data;
 export type Env = typeof env;
 
-// Guardrails de produção: falhar cedo se secrets ainda são default.
+// Guardrails de produção: falhar cedo se secrets ainda são o placeholder.
+// Casa qualquer variação que comece com "change-me-in-production" — pega
+// tanto o default explícito quanto pequenas edições ingênuas.
 if (env.NODE_ENV === 'production') {
   const insecure: string[] = [];
-  if (env.JWT_ACCESS_SECRET === 'change-me-in-production') insecure.push('JWT_ACCESS_SECRET');
-  if (env.JWT_REFRESH_SECRET === 'change-me-in-production') insecure.push('JWT_REFRESH_SECRET');
+  if (env.JWT_ACCESS_SECRET.startsWith('change-me-in-production')) insecure.push('JWT_ACCESS_SECRET');
+  if (env.JWT_REFRESH_SECRET.startsWith('change-me-in-production')) insecure.push('JWT_REFRESH_SECRET');
   if (insecure.length > 0) {
     throw new Error(
-      `[env] em NODE_ENV=production, defina os seguintes secrets: ${insecure.join(', ')}`,
+      `[env] em NODE_ENV=production, defina os seguintes secrets com ao menos 32 caracteres aleatórios: ${insecure.join(', ')}`,
     );
   }
 }

@@ -32,8 +32,16 @@ function buildUrl(path: string, query?: RequestOptions['query']): string {
 /**
  * Tenta renovar o access token via /auth/refresh (usa o cookie httpOnly).
  * Se falhar, limpa a sessão. Retorna o novo access token, ou null.
+ *
+ * SINGLE-FLIGHT: sob rajada de 401s (várias queries paralelas do TanStack),
+ * TODAS as chamadas concorrentes compartilham a MESMA Promise pendente.
+ * Sem isso, N requests disparam N /auth/refresh — o primeiro rotaciona o
+ * refresh token e os demais falham com o token já revogado, deslogando o
+ * usuário mesmo tendo sessão válida.
  */
-async function tryRefresh(): Promise<string | null> {
+let refreshInFlight: Promise<string | null> | null = null;
+
+async function doRefresh(): Promise<string | null> {
   const url = new URL('/auth/refresh', env.NEXT_PUBLIC_API_URL).toString();
   try {
     const res = await fetch(url, {
@@ -52,6 +60,14 @@ async function tryRefresh(): Promise<string | null> {
     useAuthStore.getState().clearSession();
     return null;
   }
+}
+
+async function tryRefresh(): Promise<string | null> {
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = doRefresh().finally(() => {
+    refreshInFlight = null;
+  });
+  return refreshInFlight;
 }
 
 /**
