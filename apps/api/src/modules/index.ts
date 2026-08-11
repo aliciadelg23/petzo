@@ -5,6 +5,7 @@ import { catalogRoutes } from './catalog';
 import { cartRoutes } from './cart/cart.routes';
 import { orderRoutes } from './orders/order.routes';
 import { recommendationRoutes } from './recommendations/recommendation.routes';
+import { adminRoutes } from './admin/admin.routes';
 
 /**
  * Registra todos os módulos de domínio da API.
@@ -16,4 +17,5 @@ export async function registerModules(app: FastifyInstance) {
   await app.register(cartRoutes);
   await app.register(orderRoutes);
   await app.register(recommendationRoutes);
+  await app.register(adminRoutes);
 }
