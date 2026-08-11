@@ -57,7 +57,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
     listBrands(),
   ]);
 
-  const siteUrl = env.NEXT_PUBLIC_API_URL.replace(/\/$/, '');
+  const siteUrl = env.NEXT_PUBLIC_SITE_URL;
 
   return (
     <>

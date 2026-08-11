@@ -23,8 +23,11 @@ FROM deps AS build
 COPY tsconfig.base.json ./
 COPY apps/web ./apps/web
 # URL do backend usada em RSC/fetch é lida em runtime — usamos placeholder no build.
+# NEXT_PUBLIC_* são embutidas no bundle do browser em build-time.
 ARG NEXT_PUBLIC_API_URL=http://api:3333
+ARG NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ENV NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
 RUN pnpm --filter @petzo/web build
 
 # ---------- runtime ----------------------------------------------------------
