@@ -1,4 +1,5 @@
 import { ConflictError, NotFoundError, ValidationError } from '@/shared/errors';
+import { readThrough, stableKey, TAG, TTL, type Cache } from '@/shared/cache';
 import type { ProductRepository, ProductWithRelations } from './product.repository';
 import type {
   CreateProductBody,
@@ -15,7 +16,10 @@ import type {
  * não vazem para o storefront.
  */
 export class ProductService {
-  constructor(private readonly repo: ProductRepository) {}
+  constructor(
+    private readonly repo: ProductRepository,
+    private readonly getCache: () => Cache,
+  ) {}
 
   async list(query: ListQuery, opts: { includeInactive: boolean }) {
     if (
@@ -26,6 +30,23 @@ export class ProductService {
       throw new ValidationError('minPrice não pode ser maior que maxPrice.');
     }
 
+    // Cache SÓ para o "storefront" (includeInactive=false). Rotas admin
+    // não cacheiam para nunca mostrar dado antigo pós-write no painel.
+    if (opts.includeInactive) {
+      return this.buildListResponse(query, opts);
+    }
+
+    const key = stableKey('catalog:prods', { ...query, includeInactive: false });
+    return readThrough(
+      this.getCache(),
+      key,
+      TTL.PRODUCTS_LIST,
+      [TAG.CATALOG_PRODUCTS],
+      () => this.buildListResponse(query, opts),
+    );
+  }
+
+  private async buildListResponse(query: ListQuery, opts: { includeInactive: boolean }) {
     const { items, total } = await this.repo.list(query, opts);
     return {
       items: items.map((p) => this.toResponse(p)),
@@ -37,9 +58,22 @@ export class ProductService {
   }
 
   async findOne(idOrSlug: string, opts: { includeInactive: boolean }): Promise<ProductResponse> {
-    const p = await this.repo.findByIdOrSlug(idOrSlug, opts);
-    if (!p) throw new NotFoundError('Produto não encontrado.');
-    return this.toResponse(p);
+    if (opts.includeInactive) {
+      const p = await this.repo.findByIdOrSlug(idOrSlug, opts);
+      if (!p) throw new NotFoundError('Produto não encontrado.');
+      return this.toResponse(p);
+    }
+    return readThrough(
+      this.getCache(),
+      `catalog:prod:${idOrSlug}`,
+      TTL.PRODUCT_DETAIL,
+      [TAG.CATALOG_PRODUCTS],
+      async () => {
+        const p = await this.repo.findByIdOrSlug(idOrSlug, opts);
+        if (!p) throw new NotFoundError('Produto não encontrado.');
+        return this.toResponse(p);
+      },
+    );
   }
 
   async create(input: CreateProductBody): Promise<ProductResponse> {
@@ -67,6 +101,7 @@ export class ProductService {
       images: input.images,
       inventory: input.inventory,
     });
+    await this.getCache().invalidateTag(TAG.CATALOG_PRODUCTS);
     return this.toResponse(created);
   }
 
@@ -90,6 +125,7 @@ export class ProductService {
       }
     }
     const updated = await this.repo.update(id, input);
+    await this.getCache().invalidateTag(TAG.CATALOG_PRODUCTS);
     return this.toResponse(updated);
   }
 
@@ -98,6 +134,7 @@ export class ProductService {
       throw new NotFoundError('Produto não encontrado.');
     }
     await this.repo.softDelete(id);
+    await this.getCache().invalidateTag(TAG.CATALOG_PRODUCTS);
   }
 
   // ---------------------------------------------------------------------------

@@ -13,6 +13,7 @@ import swagger from '@/plugins/swagger';
 import cookiePlugin from '@/plugins/cookie';
 import jwtPlugin from '@/plugins/jwt';
 import authHooks from '@/plugins/auth-hooks';
+import cachePlugin from '@/plugins/cache';
 import { registerModules } from '@/modules';
 
 /**
@@ -67,6 +68,9 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(cookiePlugin);
   await app.register(jwtPlugin);
   await app.register(authHooks);
+
+  // Cache (Redis) — decora app.cache; sem-op em NODE_ENV=test ou CACHE_ENABLED=false
+  await app.register(cachePlugin);
 
   // Swagger — precisa vir antes das rotas
   await app.register(swagger);

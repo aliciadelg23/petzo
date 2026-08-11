@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { prisma } from '@/shared/prisma';
+import { makeCache } from '@/shared/cache';
 import { ProductRepository } from './product.repository';
 import { ProductService } from './product.service';
 import { ProductController } from './product.controller';
@@ -23,7 +24,10 @@ const errorResponseSchema = z.object({
 
 export async function productRoutes(app: FastifyInstance) {
   const repo = new ProductRepository(prisma);
-  const service = new ProductService(repo);
+  // `getCache` é resolvido POR CHAMADA — permite substituição em runtime
+  // (ex.: integration test injeta RedisCache depois do buildApp). Sem thunk,
+  // o service capturaria a referência do NullCache do NODE_ENV=test.
+  const service = new ProductService(repo, () => app.cache ?? makeCache());
   const controller = new ProductController(service);
   const z2 = app.withTypeProvider<ZodTypeProvider>();
 
