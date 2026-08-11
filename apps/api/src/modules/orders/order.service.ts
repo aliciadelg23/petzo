@@ -7,15 +7,17 @@ import { priceOrder, type CouponRule } from './pricing';
 
 /**
  * Checkout — TX única para garantir invariantes:
- *   1. Cart carregado com locks lógicos (versão da consulta)
- *   2. Estoque verificado por item
+ *   1. Cart carregado
+ *   2. Estoque decrementado ATOMICAMENTE por produto:
+ *      UPDATE inventory SET quantity = quantity - N WHERE productId = ? AND quantity >= N
+ *      Se rowsAffected === 0 → sem estoque → aborta a TX inteira (rollback).
+ *      Isso vale mesmo em READ COMMITTED — o UPDATE condicional serializa.
  *   3. Preços recalculados NO SERVIDOR (client não envia preço nenhum)
  *   4. Cupom validado + ativo + minOrderAmount
  *   5. Order + OrderItems + Payment criados
- *   6. Inventory decrementado (atomicamente por produto)
- *   7. Cart esvaziado
- *   8. Coupon.usedCount incrementado
- *   9. Máquina de estados avança PENDING_PAYMENT -> PAID (simulação instantânea)
+ *   6. Cart esvaziado
+ *   7. Coupon.usedCount incrementado
+ *   8. Máquina de estados avança PENDING_PAYMENT -> PAID (simulação instantânea)
  */
 export class OrderService {
   constructor(private readonly repo: OrderRepository) {}
@@ -40,15 +42,31 @@ export class OrderService {
         throw new ValidationError('Carrinho vazio.');
       }
 
-      // Estoque
+      // Produto inativo — verificação simples (não muda com concorrência).
       for (const item of cart.items) {
-        const stock = item.product.inventory?.quantity ?? 0;
         if (!item.product.active) {
           throw new ConflictError(`Produto "${item.product.name}" está indisponível.`);
         }
-        if (stock < item.quantity) {
+      }
+
+      // Estoque: decremento ATÔMICO condicional.
+      // O UPDATE serializa em READ COMMITTED — dois checkouts do último item
+      // não podem ambos passar. O que perder retorna rowsAffected === 0.
+      for (const it of cart.items) {
+        const affected = await tx.$executeRaw`
+          UPDATE "Inventory"
+          SET quantity = quantity - ${it.quantity},
+              "updatedAt" = NOW()
+          WHERE "productId" = ${it.productId}
+            AND quantity >= ${it.quantity}
+        `;
+        if (affected === 0) {
+          const current = await tx.inventory.findUnique({
+            where: { productId: it.productId },
+            select: { quantity: true },
+          });
           throw new ConflictError(
-            `Estoque insuficiente para "${item.product.name}". Disponível: ${stock}.`,
+            `Estoque insuficiente para "${it.product.name}". Disponível: ${current?.quantity ?? 0}.`,
           );
         }
       }
@@ -118,13 +136,8 @@ export class OrderService {
         },
       });
 
-      // Decrementa estoque
-      for (const it of cart.items) {
-        await tx.inventory.update({
-          where: { productId: it.productId },
-          data: { quantity: { decrement: it.quantity } },
-        });
-      }
+      // (Estoque já foi decrementado ATOMICAMENTE acima antes de criar a Order —
+      // se qualquer produto não tinha estoque a TX toda foi abortada.)
 
       // Esvazia cart
       await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
