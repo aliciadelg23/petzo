@@ -28,6 +28,10 @@ async function swaggerPlugin(app: FastifyInstance) {
         { name: 'brands', description: 'Marcas do catálogo (leitura pública)' },
         { name: 'cart', description: 'Carrinho do usuário autenticado' },
         { name: 'orders', description: 'Pedidos do usuário autenticado + checkout' },
+        { name: 'wishlist', description: 'Wishlist (favoritos) do usuário' },
+        { name: 'reviews', description: 'Reviews de produtos (compra prévia obrigatória)' },
+        { name: 'coupons', description: 'Validação (auth) + gestão admin de cupons' },
+        { name: 'subscriptions', description: 'Assinaturas recorrentes (sem cobrança real)' },
       ],
       components: {
         securitySchemes: {
