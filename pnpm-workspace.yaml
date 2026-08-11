@@ -15,3 +15,9 @@ allowBuilds:
   "@prisma/engines": true
   prisma: true
   argon2: true
+
+# Overrides — força versão única de @types/react em toda a árvore para evitar
+# conflito ReactNode entre @testing-library/react (traz 18.3) e Next 15/React 19.
+overrides:
+  "@types/react": "^19.0.0"
+  "@types/react-dom": "^19.0.0"
