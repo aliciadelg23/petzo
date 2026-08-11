@@ -1,0 +1,121 @@
+# =============================================================================
+# Petzo — CI de release
+# =============================================================================
+# Dispara com tags no formato `v*.*.*` (ex.: v1.0.0, v1.2.3-rc.1).
+#
+# Fluxo:
+#   1) validate (mesma bateria: install/lint/typecheck/test/build)
+#   2) build-images (API + Web via docker/build-push-action, sem push)
+#
+# DEPLOY REAL EXPLICITAMENTE DESATIVADO — o owner do repo precisa autorizar
+# antes de habilitar push para registry ou aplicação em ambiente real.
+# Ver `docs/ci-cd.md` § "Habilitando deploy" para o procedimento.
+# =============================================================================
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+# Nenhum permissions extra: manter mínimo até deploy ser autorizado.
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate
+    uses: ./.github/workflows/validate.yml
+
+  build-images:
+    name: Build Docker images
+    needs: validate
+    runs-on: ubuntu-latest
+    env:
+      # Ref da tag em env var, nunca interpolado dentro de `run:`.
+      # (Evita injection mesmo sendo tag do próprio repo — defesa em profundidade.)
+      RELEASE_TAG: ${{ github.ref_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Print target tag (safe echo)
+        # RELEASE_TAG está em env — shell expande, não action-interpolation.
+        run: echo "Building images for tag $RELEASE_TAG"
+
+      - name: Build API image (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: false
+          load: true
+          tags: petzo-api:${{ github.ref_name }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+
+      - name: Build Web image (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: false
+          load: true
+          tags: petzo-web:${{ github.ref_name }}
+          build-args: |
+            NEXT_PUBLIC_API_URL=http://localhost:3333
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+
+      # -----------------------------------------------------------------------
+      # DEPLOY STEPS — DESATIVADO ATÉ AUTORIZAÇÃO EXPLÍCITA DO OWNER.
+      # -----------------------------------------------------------------------
+      # Para habilitar, o owner deve:
+      #   1) Configurar as secrets do registry no repo (Settings > Secrets):
+      #        REGISTRY_URL, REGISTRY_USERNAME, REGISTRY_PASSWORD
+      #      (ou usar GHCR com GITHUB_TOKEN + permissions.packages: write)
+      #   2) Trocar `if: false` por `if: true` nos steps abaixo.
+      #   3) Adicionar `permissions: packages: write` no topo do job.
+      #   4) Criar um environment protection rule "production" com approval
+      #      manual em Settings > Environments.
+      # Enquanto isso: nenhum push automático para registry, nenhum deploy.
+      # -----------------------------------------------------------------------
+
+      - name: Login to registry — DISABLED
+        if: false
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.REGISTRY_URL }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Push API image — DISABLED
+        if: false
+        run: docker push "petzo-api:$RELEASE_TAG"
+
+      - name: Push Web image — DISABLED
+        if: false
+        run: docker push "petzo-web:$RELEASE_TAG"
+
+  release-summary:
+    name: Release summary
+    needs: build-images
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ github.ref_name }}
+    steps:
+      - name: Write summary
+        run: |
+          {
+            echo "## Release $RELEASE_TAG"
+            echo ""
+            echo "- Validate: **passed**"
+            echo "- Build API image: **passed** (not pushed — awaiting authorization)"
+            echo "- Build Web image: **passed** (not pushed — awaiting authorization)"
+            echo ""
+            echo "See \`docs/ci-cd.md\` for how to enable registry push and deploy."
+          } >> "$GITHUB_STEP_SUMMARY"
