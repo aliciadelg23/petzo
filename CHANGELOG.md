@@ -4,6 +4,18 @@ Todas as mudanças notáveis são registradas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.0.2] — 2026-08-11
+
+### Corrigido
+
+- **Mobile — RootLayout**: removida diretiva `@ts-expect-error` no
+  `apps/mobile/app/_layout.tsx` que suprimia um erro de tipo de
+  `GestureHandlerRootView`. Em ambientes limpos (CI, install fresco) o
+  erro não existe — a resolução de `@types/react` fica na versão que
+  casa com o React 18 do mobile — e a diretiva "não-usada" fazia o CI
+  falhar em `@petzo/mobile#typecheck` com TS2578. Sem a diretiva o
+  typecheck passa em CI e em installs limpos localmente.
+
 ## [1.0.1] — 2026-08-11
 
 ### Corrigido
