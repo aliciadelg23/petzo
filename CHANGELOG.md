@@ -4,6 +4,18 @@ Todas as mudanças notáveis são registradas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.0.1] — 2026-08-11
+
+### Corrigido
+
+- **API — env schema**: `LOG_LEVEL` passou a aceitar `'silent'` além dos
+  níveis do pino (`fatal|error|warn|info|debug|trace`). O workflow de CI
+  (`validate.yml`) seta `LOG_LEVEL=silent` para não poluir a saída dos
+  jobs; sem esse valor no enum, o boot da API rejeitava a variável e
+  todos os 12 arquivos de integration tests falhavam em setup no CI
+  (0 tests executados). Localmente passava porque o default do enum
+  (`info`) cobria a ausência da var.
+
 ## [1.0.0] — 2026-08-11
 
 Primeira release do Petzo — monorepo full-stack de e-commerce para produtos
