@@ -114,4 +114,25 @@ describe('readThrough', () => {
     expect(v).toBe('ok');
     expect(fetch).toHaveBeenCalledTimes(2);
   });
+
+  it('single-flight: MISS concorrente na mesma key dispara APENAS 1 fetch', async () => {
+    const cache = new MemoryCache();
+    let inflight = 0;
+    let maxInflight = 0;
+    const fetch = vi.fn(async () => {
+      inflight += 1;
+      maxInflight = Math.max(maxInflight, inflight);
+      await new Promise((r) => setTimeout(r, 20));
+      inflight -= 1;
+      return 'val';
+    });
+
+    const results = await Promise.all(
+      Array.from({ length: 50 }, () => readThrough(cache, 'same-key', 60, [], fetch)),
+    );
+
+    expect(results).toEqual(Array(50).fill('val'));
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(maxInflight).toBe(1); // nunca dois fetches em voo simultâneos
+  });
 });
