@@ -17,7 +17,7 @@ async function swaggerPlugin(app: FastifyInstance) {
       info: {
         title: 'Petzo API',
         description: 'API REST do Petzo — e-commerce de produtos para pets.',
-        version: '1.0.2',
+        version: '1.0.3',
       },
       servers: [{ url: 'http://localhost:3333', description: 'local' }],
       tags: [
