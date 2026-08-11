@@ -34,6 +34,8 @@ async function swaggerPlugin(app: FastifyInstance) {
             'Recomendações comerciais por pet — determinísticas (regras). Nunca médicas.',
         },
         { name: 'admin', description: 'Painel administrativo (STAFF/ADMIN)' },
+        { name: 'pets', description: 'CRUD de pets do usuário autenticado' },
+        { name: 'wishlist', description: 'Wishlist (favoritos) do usuário autenticado' },
       ],
       components: {
         securitySchemes: {
