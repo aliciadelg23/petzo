@@ -133,16 +133,25 @@ export class ProductRepository {
     return this.prisma.product.update({ where: { id }, data: { active: false } });
   }
 
+  // Estes três só querem saber "existe?" — projetamos apenas a PK para
+  // evitar transferir todas as colunas em cada write. Ganho micro mas
+  // gratuito (é literalmente 1 palavra `select`).
   exists(id: string): Promise<boolean> {
-    return this.prisma.product.findUnique({ where: { id } }).then((p) => p !== null);
+    return this.prisma.product
+      .findUnique({ where: { id }, select: { id: true } })
+      .then((p) => p !== null);
   }
 
   categoryExists(id: string): Promise<boolean> {
-    return this.prisma.category.findUnique({ where: { id } }).then((c) => c !== null);
+    return this.prisma.category
+      .findUnique({ where: { id }, select: { id: true } })
+      .then((c) => c !== null);
   }
 
   brandExists(id: string): Promise<boolean> {
-    return this.prisma.brand.findUnique({ where: { id } }).then((b) => b !== null);
+    return this.prisma.brand
+      .findUnique({ where: { id }, select: { id: true } })
+      .then((b) => b !== null);
   }
 
   findBySlug(slug: string): Promise<Product | null> {

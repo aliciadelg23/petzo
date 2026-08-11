@@ -274,7 +274,19 @@ export const TAG = {
  *   1. Tenta buscar por key. Se HIT, retorna direto.
  *   2. MISS → chama `fetch()`, armazena e retorna.
  * `tags` são usadas para invalidação por domínio.
+ *
+ * Single-flight anti-thundering-herd:
+ *   Quando várias requisições atingem MISS simultâneo na MESMA key,
+ *   apenas UMA chama `fetch()`; as demais compartilham a mesma Promise
+ *   pendente. Sem isso, 100 requests concorrentes viram 100 queries no
+ *   Postgres logo após uma invalidação.
+ *
+ *   O map é in-process (por Node worker). Em fleet horizontal isso ainda
+ *   reduz o fan-out por N-nós; para dedupe absoluto entre nós seria
+ *   necessário um lock distribuído no Redis (out of scope deste fix).
  */
+const inFlight = new Map<string, Promise<unknown>>();
+
 export async function readThrough<T>(
   cache: Cache,
   key: string,
@@ -284,7 +296,20 @@ export async function readThrough<T>(
 ): Promise<T> {
   const hit = await cache.get<T>(key);
   if (hit !== null) return hit;
-  const value = await fetch();
-  await cache.set(key, value, ttlSeconds, tags);
-  return value;
+
+  // Se já existe um fetch em voo para esta key, aproveita a mesma Promise.
+  const pending = inFlight.get(key);
+  if (pending) return pending as Promise<T>;
+
+  const promise = (async () => {
+    try {
+      const value = await fetch();
+      await cache.set(key, value, ttlSeconds, tags);
+      return value;
+    } finally {
+      inFlight.delete(key);
+    }
+  })();
+  inFlight.set(key, promise);
+  return promise;
 }
