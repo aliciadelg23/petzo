@@ -172,8 +172,13 @@ jobs:
       # Fixtures públicas — usadas apenas por Vitest no runner efêmero.
       # NÃO são secrets e NÃO devem ser reutilizadas em ambientes reais.
       NODE_ENV: test
-      DATABASE_URL: postgresql://petzo:petzo@localhost:5432/petzo
-      REDIS_URL: redis://localhost:6379
+      # 127.0.0.1 em vez de "localhost" — no runner do GH Actions o
+      # /etc/hosts mapeia `::1 localhost` também, e o dns.lookup do Node
+      # pode devolver IPv6 primeiro. O container do Redis service só
+      # escuta em IPv4 → ioredis fica preso em offline-queue e comandos
+      # falham silenciosamente. IP literal força IPv4.
+      DATABASE_URL: postgresql://petzo:petzo@127.0.0.1:5432/petzo
+      REDIS_URL: redis://127.0.0.1:6379
       JWT_ACCESS_SECRET: ci-only-not-real-do-not-use-outside-ci-fixtures
       JWT_REFRESH_SECRET: ci-only-not-real-do-not-use-outside-ci-fixtures
       JWT_ACCESS_TTL: 15m
@@ -217,8 +222,11 @@ jobs:
         run: |
           sudo apt-get update -y >/dev/null
           sudo apt-get install -y --no-install-recommends redis-tools >/dev/null
+          # Usa 127.0.0.1 (não `localhost`) para bater exatamente com o
+          # endpoint que o app vai usar em runtime — evita mascarar bugs
+          # de resolução IPv6 vs IPv4.
           for i in $(seq 1 30); do
-            if redis-cli -h localhost -p 6379 ping | grep -q PONG; then
+            if redis-cli -h 127.0.0.1 -p 6379 ping | grep -q PONG; then
               echo "redis pronto"
               exit 0
             fi
