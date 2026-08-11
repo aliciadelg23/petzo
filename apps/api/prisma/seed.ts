@@ -155,6 +155,7 @@ async function main() {
       species: Species.DOG,
       breed: 'Golden Retriever',
       birthDate: new Date('2022-04-15'),
+      weight: 28.5,
     },
   });
   await prisma.pet.upsert({
@@ -167,6 +168,7 @@ async function main() {
       species: Species.CAT,
       breed: 'SRD',
       birthDate: new Date('2023-11-02'),
+      weight: 4.2,
     },
   });
   await prisma.pet.upsert({
@@ -179,6 +181,7 @@ async function main() {
       species: Species.RABBIT,
       breed: 'Angorá',
       birthDate: new Date('2024-06-10'),
+      weight: 1.8,
     },
   });
 
@@ -214,6 +217,13 @@ async function main() {
     where: { slug: 'acessorios-gatos' },
     update: {},
     create: { slug: 'acessorios-gatos', name: 'Acessórios para Gatos', parentId: cats.id },
+  });
+  // Categoria médica — usada nos testes para validar exclusão do motor de
+  // recomendação (o Petzo não sugere produtos médicos automaticamente).
+  const catMed = await prisma.category.upsert({
+    where: { slug: 'medicamentos' },
+    update: {},
+    create: { slug: 'medicamentos', name: 'Medicamentos' },
   });
 
   // ---------------------------------------------------------------------------
@@ -376,6 +386,18 @@ async function main() {
       price: 1990,
       stock: 150,
       images: [{ url: 'https://placehold.co/600x600?text=Varinha', alt: 'Varinha', position: 0 }],
+    },
+    {
+      slug: 'vermifugo-caes',
+      name: 'Vermífugo para Cães (sob prescrição)',
+      description:
+        'Antiparasitário oral. Uso sob orientação veterinária. NÃO deve ser recomendado automaticamente.',
+      categoryId: catMed.id,
+      brandId: petzoLabs.id,
+      species: Species.DOG,
+      price: 5990,
+      stock: 20,
+      images: [{ url: 'https://placehold.co/600x600?text=Vermifugo', alt: 'Vermífugo', position: 0 }],
     },
   ];
 

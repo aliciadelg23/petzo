@@ -28,6 +28,11 @@ async function swaggerPlugin(app: FastifyInstance) {
         { name: 'brands', description: 'Marcas do catálogo (leitura pública)' },
         { name: 'cart', description: 'Carrinho do usuário autenticado' },
         { name: 'orders', description: 'Pedidos do usuário autenticado + checkout' },
+        {
+          name: 'recommendations',
+          description:
+            'Recomendações comerciais por pet — determinísticas (regras). Nunca médicas.',
+        },
       ],
       components: {
         securitySchemes: {
