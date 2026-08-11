@@ -25,7 +25,7 @@
     "docker:down": "docker compose -f ../../docker/docker-compose.dev.yml down"
   },
   "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "seed": "node --experimental-strip-types --no-warnings prisma/seed.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.1",
