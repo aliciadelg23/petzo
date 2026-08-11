@@ -1,0 +1,41 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: petzo-redis-dev
+    restart: unless-stopped
+    # Host 6380 → container 6379 (evita conflito com Redis local em 6379).
+    ports:
+      - "6380:6379"
+    command: ["redis-server", "--save", "60", "1000", "--loglevel", "warning"]
+    volumes:
+      - petzo_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: petzo-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: petzo
+      POSTGRES_PASSWORD: petzo
+      POSTGRES_DB: petzo
+    ports:
+      # Host 5433 → container 5432 (evita conflito com Postgres local em 5432).
+      - "5433:5432"
+    volumes:
+      - petzo_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U petzo -d petzo"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  petzo_pg_data:
+    name: petzo_pg_data
+  petzo_redis_data:
+    name: petzo_redis_data

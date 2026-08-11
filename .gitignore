@@ -12,6 +12,8 @@ out/
 # tests / coverage
 coverage/
 .nyc_output/
+test-results/
+playwright-report/
 
 # logs
 *.log
@@ -36,3 +38,8 @@ Thumbs.db
 tmp/
 .eslintcache
 .cache/
+*.tsbuildinfo
+
+# Playwright
+playwright-report/
+test-results/

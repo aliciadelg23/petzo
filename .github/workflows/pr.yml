@@ -1,0 +1,29 @@
+# =============================================================================
+# Petzo — CI para Pull Requests
+# =============================================================================
+# Roda todo o pipeline de validação:
+#   install -> lint -> typecheck -> test -> build
+#
+# Cancela runs anteriores do mesmo PR ao receber um novo push (economia de
+# minutos + feedback do último commit fica óbvio).
+# =============================================================================
+
+name: PR
+
+on:
+  pull_request:
+    branches: [develop, main]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate
+    if: github.event.pull_request.draft == false
+    uses: ./.github/workflows/validate.yml

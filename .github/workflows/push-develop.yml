@@ -1,0 +1,21 @@
+# =============================================================================
+# Petzo — CI para push em develop
+# =============================================================================
+# Sempre que develop recebe um push (merge de PR incluído), roda a mesma
+# bateria de validações que os PRs. Sem cancelamento — cada commit em develop
+# tem seu histórico de CI preservado.
+# =============================================================================
+
+name: Push develop
+
+on:
+  push:
+    branches: [develop]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate
+    uses: ./.github/workflows/validate.yml

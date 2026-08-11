@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+/* Design tokens da marca Petzo. Referenciáveis no Tailwind v4 como bg-brand-600, text-brand-50 etc. */
+@theme {
+  --color-brand-50:  #fff5f0;
+  --color-brand-100: #ffe0d1;
+  --color-brand-200: #ffb894;
+  --color-brand-300: #ff9057;
+  --color-brand-400: #ff7f34;
+  --color-brand-500: #f26621;
+  --color-brand-600: #d84f14;
+  --color-brand-700: #a83d0d;
+  --color-brand-800: #7d2c07;
+  --color-brand-900: #521c03;
+
+  --font-family-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+html,
+body {
+  color: theme(--color-neutral-900);
+  background: #fff;
+  font-family: var(--font-family-sans);
+}
+
+/* Reset simples para links dentro do app */
+a {
+  color: inherit;
+  text-decoration: inherit;
+}

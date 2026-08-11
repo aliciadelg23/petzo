@@ -1,0 +1,60 @@
+# Deps e caches
+node_modules
+**/node_modules
+.pnpm-store
+.turbo
+**/.turbo
+
+# Build outputs
+dist
+**/dist
+.next
+**/.next
+out
+**/out
+build
+**/build
+
+# Test / coverage
+coverage
+**/coverage
+.nyc_output
+**/.nyc_output
+test-results
+**/test-results
+playwright-report
+**/playwright-report
+
+# Git / VCS
+.git
+.gitignore
+.github
+
+# Env — nunca copiado para dentro da imagem (injetado via `env_file` do compose)
+.env
+.env.local
+.env.*.local
+**/.env
+**/.env.local
+**/.env.*.local
+
+# Editor / SO
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+*.swp
+
+# Docs / meta que não vão pra runtime
+docs
+plans
+tmp
+*.log
+*.tsbuildinfo
+.eslintcache
+.cache
+
+# Docker / compose (evita rebuild-loop se compose mudar)
+docker
+Dockerfile*
+docker-compose*.yml

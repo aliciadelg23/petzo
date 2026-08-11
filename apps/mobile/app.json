@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "Petzo",
+    "slug": "petzo",
+    "version": "0.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "scheme": "petzo",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "test.petzo.app"
+    },
+    "android": {
+      "package": "test.petzo.app"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store"
+    ],
+    "extra": {
+      "apiUrl": "http://localhost:3333"
+    },
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

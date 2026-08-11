@@ -1,0 +1,93 @@
+# =============================================================================
+# Petzo — docker-compose full stack (Postgres + Redis + API + Web)
+# =============================================================================
+# Uso:
+#   docker compose -f docker/docker-compose.yml up -d --build
+#
+# Env: lê da raiz do repo (`../.env`). Copie de `../.env.example`.
+# =============================================================================
+
+name: petzo
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: petzo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-petzo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-petzo}
+      POSTGRES_DB: ${POSTGRES_DB:-petzo}
+    ports:
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
+    volumes:
+      - petzo_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: petzo-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_HOST_PORT:-6380}:6379"
+    command: ["redis-server", "--save", "60", "1000", "--loglevel", "warning"]
+    volumes:
+      - petzo_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    container_name: petzo-api
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - ../.env
+    environment:
+      # Reescreve para os hostnames internos da rede do compose,
+      # ignorando qualquer valor de host que veio no .env de dev.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-petzo}:${POSTGRES_PASSWORD:-petzo}@postgres:5432/${POSTGRES_DB:-petzo}
+      REDIS_URL: redis://redis:6379
+    ports:
+      - "${API_HOST_PORT:-3333}:3333"
+
+  web:
+    container_name: petzo-web
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+      args:
+        # Baked no bundle do Next em build-time (variáveis NEXT_PUBLIC_*).
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3333}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    env_file:
+      - ../.env
+    environment:
+      # SSR/RSC do Next dentro do compose fala com a API pelo hostname
+      # interno da rede — nunca pelo host mapeado.
+      INTERNAL_API_URL: http://api:3333
+    ports:
+      - "${WEB_HOST_PORT:-3000}:3000"
+
+volumes:
+  petzo_pg_data:
+    name: petzo_pg_data
+  petzo_redis_data:
+    name: petzo_redis_data
