@@ -1,5 +1,6 @@
 'use client';
 
+import { useId } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -79,30 +80,51 @@ export default function CheckoutPage() {
             <h2 className="text-sm font-semibold text-neutral-900">Endereço de entrega</h2>
             <div className="mt-3 grid grid-cols-2 gap-3">
               <Field label="Rótulo" error={errors.label?.message}>
-                <Input {...register('label')} placeholder="Casa" />
+                {(a) => <Input {...a} {...register('label')} placeholder="Casa" />}
               </Field>
               <Field label="CEP" error={errors.zip?.message}>
-                <Input {...register('zip')} placeholder="00000-000" />
+                {(a) => (
+                  <Input
+                    {...a}
+                    {...register('zip')}
+                    inputMode="numeric"
+                    autoComplete="postal-code"
+                    placeholder="00000-000"
+                  />
+                )}
               </Field>
               <div className="col-span-2">
                 <Field label="Rua" error={errors.street?.message}>
-                  <Input {...register('street')} />
+                  {(a) => (
+                    <Input {...a} {...register('street')} autoComplete="address-line1" />
+                  )}
                 </Field>
               </div>
               <Field label="Número" error={errors.number?.message}>
-                <Input {...register('number')} />
+                {(a) => <Input {...a} {...register('number')} inputMode="numeric" />}
               </Field>
               <Field label="Complemento" error={errors.complement?.message}>
-                <Input {...register('complement')} />
+                {(a) => (
+                  <Input {...a} {...register('complement')} autoComplete="address-line2" />
+                )}
               </Field>
               <Field label="Bairro" error={errors.district?.message}>
-                <Input {...register('district')} />
+                {(a) => <Input {...a} {...register('district')} />}
               </Field>
               <Field label="Cidade" error={errors.city?.message}>
-                <Input {...register('city')} />
+                {(a) => (
+                  <Input {...a} {...register('city')} autoComplete="address-level2" />
+                )}
               </Field>
               <Field label="UF" error={errors.state?.message}>
-                <Input {...register('state')} maxLength={2} />
+                {(a) => (
+                  <Input
+                    {...a}
+                    {...register('state')}
+                    autoComplete="address-level1"
+                    maxLength={2}
+                  />
+                )}
               </Field>
             </div>
           </section>
@@ -115,7 +137,7 @@ export default function CheckoutPage() {
                 error={errors.couponCode?.message}
                 hint="Ex.: BEMVINDO10 (10% off em compras a partir de R$50)"
               >
-                <Input {...register('couponCode')} placeholder="CÓDIGO" />
+                {(a) => <Input {...a} {...register('couponCode')} placeholder="CÓDIGO" />}
               </Field>
             </div>
           </section>
@@ -150,6 +172,14 @@ export default function CheckoutPage() {
   );
 }
 
+/**
+ * Field a11y-friendly. Gera `id` estável via `useId`, propaga para
+ * `htmlFor` do label e para `aria-invalid`/`aria-describedby` do input.
+ *
+ * Assinatura: `children` recebe (attrs) → JSX. O consumidor faz spread
+ * de `attrs` no elemento de entrada. Isso garante que todo input do
+ * form receba id + aria-* corretos, sem depender do dev lembrar.
+ */
 function Field({
   label,
   hint,
@@ -159,16 +189,40 @@ function Field({
   label: string;
   hint?: string;
   error?: string;
-  children: React.ReactNode;
+  children: (attrs: {
+    id: string;
+    'aria-invalid'?: true;
+    'aria-describedby'?: string;
+  }) => React.ReactNode;
 }) {
+  const inputId = useId();
+  const hintId = `${inputId}-hint`;
+  const errorId = `${inputId}-error`;
+  const describedBy = error ? errorId : hint ? hintId : undefined;
+
   return (
     <div className="space-y-1">
-      <label className="block text-xs font-medium uppercase tracking-wide text-neutral-600">
+      <label
+        htmlFor={inputId}
+        className="block text-xs font-medium uppercase tracking-wide text-neutral-600"
+      >
         {label}
       </label>
-      {children}
-      {hint && !error && <p className="text-xs text-neutral-500">{hint}</p>}
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {children({
+        id: inputId,
+        ...(error ? ({ 'aria-invalid': true } as const) : {}),
+        ...(describedBy ? { 'aria-describedby': describedBy } : {}),
+      })}
+      {hint && !error && (
+        <p id={hintId} className="text-xs text-neutral-500">
+          {hint}
+        </p>
+      )}
+      {error && (
+        <p id={errorId} role="alert" className="text-xs text-red-600">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
