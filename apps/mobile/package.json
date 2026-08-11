@@ -1,6 +1,6 @@
 {
   "name": "@petzo/mobile",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -54,14 +54,26 @@
   },
   "jest": {
     "testEnvironment": "node",
-    "testMatch": ["<rootDir>/src/**/*.spec.ts"],
+    "testMatch": [
+      "<rootDir>/src/**/*.spec.ts"
+    ],
     "transform": {
-      "^.+\\.ts$": ["babel-jest", {
-        "presets": [
-          ["@babel/preset-env", { "targets": { "node": "current" } }],
-          "@babel/preset-typescript"
-        ]
-      }]
+      "^.+\\.ts$": [
+        "babel-jest",
+        {
+          "presets": [
+            [
+              "@babel/preset-env",
+              {
+                "targets": {
+                  "node": "current"
+                }
+              }
+            ],
+            "@babel/preset-typescript"
+          ]
+        }
+      ]
     }
   }
 }

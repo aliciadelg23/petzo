@@ -1,6 +1,6 @@
 {
   "name": "petzo",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Petzo — e-commerce de produtos para pets (monorepo pnpm + Turborepo)",
   "license": "MIT",
