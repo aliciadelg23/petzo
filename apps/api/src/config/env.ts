@@ -29,7 +29,16 @@ const envSchema = z.object({
     .url()
     .default('postgresql://petzo:petzo@localhost:5433/petzo'),
 
-  REDIS_URL: z.string().url().default('redis://localhost:6379'),
+  REDIS_URL: z.string().url().default('redis://localhost:6380'),
+  /**
+   * Liga o cache Redis. Em `test` fica desligado por default (integration
+   * tests não devem depender de Redis subir). Testes que precisam de cache
+   * (cache-specific spec) sobrescrevem via env.
+   */
+  CACHE_ENABLED: z
+    .union([z.literal('true'), z.literal('false'), z.boolean()])
+    .transform((v) => (typeof v === 'boolean' ? v : v === 'true'))
+    .default(true),
 
   JWT_ACCESS_SECRET: z.string().min(1).default('change-me-in-production'),
   JWT_REFRESH_SECRET: z.string().min(1).default('change-me-in-production'),

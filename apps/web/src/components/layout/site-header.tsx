@@ -1,11 +1,13 @@
 import Link from 'next/link';
 import { Container } from '@/components/ui/container';
+import { UserMenu } from '@/features/auth/components/user-menu';
+import { CartBadge } from '@/features/cart/components/cart-badge';
 
-// RSC — sem interatividade. Menu mobile (quando existir) virá em Client Component isolado.
+// RSC — sem interatividade. UserMenu é ilha CLIENT isolada.
 
 const NAV = [
   { href: '/', label: 'Início' },
-  { href: '/loja', label: 'Loja' },
+  { href: '/products', label: 'Produtos' },
   { href: '/sobre', label: 'Sobre' },
 ] as const;
 
@@ -28,6 +30,10 @@ export function SiteHeader() {
             ))}
           </ul>
         </nav>
+        <div className="flex items-center gap-4">
+          <CartBadge />
+          <UserMenu />
+        </div>
       </Container>
     </header>
   );

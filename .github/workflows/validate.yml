@@ -1,0 +1,274 @@
+# =============================================================================
+# Petzo — Reusable validation workflow
+# =============================================================================
+# Roda o mesmo pipeline em PRs, pushes para develop e releases:
+#   install  ->  lint  ->  typecheck  ->  test  ->  build
+#
+# É consumido via `workflow_call` por pr.yml, push-develop.yml e release.yml.
+# Nenhum step precisa de secrets do repositório — o único secret usado é o
+# GITHUB_TOKEN nativo (auto-emitido pelo GitHub).
+# =============================================================================
+
+name: Validate
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: Ref to check out (default = event ref).
+        type: string
+        required: false
+        default: ''
+
+# Permite que outros workflows chamem este sem privilégios elevados.
+permissions:
+  contents: read
+
+jobs:
+  # --------------------------------------------------------------------------
+  # Install deps once, reuse via cache nos jobs seguintes.
+  # --------------------------------------------------------------------------
+  install:
+    name: Install
+    runs-on: ubuntu-latest
+    outputs:
+      pnpm-store: ${{ steps.pnpm-store.outputs.dir }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.9.0
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Resolve pnpm store path
+        id: pnpm-store
+        run: echo "dir=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+  # --------------------------------------------------------------------------
+  # Lint (ESLint em todos os workspaces via Turbo).
+  # --------------------------------------------------------------------------
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    needs: install
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.9.0
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Turbo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-lint-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            turbo-lint-${{ runner.os }}-
+
+      - name: Lint
+        run: pnpm lint
+
+  # --------------------------------------------------------------------------
+  # Typecheck (tsc --noEmit em todos os workspaces).
+  # --------------------------------------------------------------------------
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    needs: install
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.9.0
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Prisma generate (necessário para tipos do @prisma/client)
+        run: pnpm --filter @petzo/api exec prisma generate
+
+      - name: Turbo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-typecheck-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            turbo-typecheck-${{ runner.os }}-
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+  # --------------------------------------------------------------------------
+  # Tests — unit + integration.
+  # Serviços containerizados de Postgres/Redis rodam alinhados ao runner.
+  # Credenciais aqui são LITERAIS de CI (não são secrets — fixtures públicas).
+  # --------------------------------------------------------------------------
+  test:
+    name: Test (unit + integration)
+    runs-on: ubuntu-latest
+    needs: install
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: petzo
+          POSTGRES_PASSWORD: petzo
+          POSTGRES_DB: petzo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U petzo -d petzo"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
+    env:
+      # Fixtures públicas — usadas apenas por Vitest no runner efêmero.
+      # NÃO são secrets e NÃO devem ser reutilizadas em ambientes reais.
+      NODE_ENV: test
+      DATABASE_URL: postgresql://petzo:petzo@localhost:5432/petzo
+      REDIS_URL: redis://localhost:6379
+      JWT_ACCESS_SECRET: ci-only-not-real-do-not-use-outside-ci-fixtures
+      JWT_REFRESH_SECRET: ci-only-not-real-do-not-use-outside-ci-fixtures
+      JWT_ACCESS_TTL: 15m
+      JWT_REFRESH_TTL: 7d
+      CORS_ORIGINS: http://localhost:3000
+      CACHE_ENABLED: 'true'
+      NEXT_PUBLIC_API_URL: http://localhost:3333
+      LOG_LEVEL: silent
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.9.0
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Prisma generate + migrate deploy
+        run: |
+          pnpm --filter @petzo/api exec prisma generate
+          pnpm --filter @petzo/api exec prisma migrate deploy
+
+      - name: Unit tests (todos os workspaces)
+        run: pnpm test
+
+      - name: Integration tests (API)
+        # Só existe no @petzo/api; ignora silenciosamente se ausente noutros.
+        run: pnpm --filter @petzo/api test:integration
+
+  # --------------------------------------------------------------------------
+  # Build — API (tsup) + Web (next build).
+  # --------------------------------------------------------------------------
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: install
+    env:
+      # Bake-in em build-time para o Web; runtime consumer usa este mesmo URL.
+      NEXT_PUBLIC_API_URL: http://localhost:3333
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.9.0
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Prisma generate
+        run: pnpm --filter @petzo/api exec prisma generate
+
+      - name: Turbo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-build-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            turbo-build-${{ runner.os }}-
+
+      - name: Build
+        run: pnpm build
+
+      - name: Upload API dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-dist-${{ github.sha }}
+          path: apps/api/dist
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Upload Web .next
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-next-${{ github.sha }}
+          path: |
+            apps/web/.next/standalone
+            apps/web/.next/static
+          retention-days: 7
+          if-no-files-found: warn

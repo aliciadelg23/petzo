@@ -20,7 +20,24 @@ async function swaggerPlugin(app: FastifyInstance) {
         version: '0.0.0',
       },
       servers: [{ url: 'http://localhost:3333', description: 'local' }],
-      tags: [{ name: 'health', description: 'Liveness/readiness da API' }],
+      tags: [
+        { name: 'health', description: 'Liveness/readiness da API' },
+        { name: 'auth', description: 'Registro, login, refresh, logout, /me' },
+        { name: 'products', description: 'Catálogo de produtos (leitura pública; escrita STAFF/ADMIN)' },
+        { name: 'categories', description: 'Categorias do catálogo (leitura pública)' },
+        { name: 'brands', description: 'Marcas do catálogo (leitura pública)' },
+        { name: 'cart', description: 'Carrinho do usuário autenticado' },
+        { name: 'orders', description: 'Pedidos do usuário autenticado + checkout' },
+      ],
+      components: {
+        securitySchemes: {
+          bearerAuth: {
+            type: 'http',
+            scheme: 'bearer',
+            bearerFormat: 'JWT',
+          },
+        },
+      },
     },
     transform: jsonSchemaTransform,
   });

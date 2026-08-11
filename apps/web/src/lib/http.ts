@@ -1,24 +1,22 @@
 import { env } from '@/config/env';
 import { HttpError, NetworkError } from '@/lib/errors';
+import { useAuthStore } from '@/features/auth/store';
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 interface RequestOptions {
   method?: HttpMethod;
-  /** Corpo JSON. Serializado automaticamente. */
   body?: unknown;
-  /** Query string (será stringified com URLSearchParams). */
   query?: Record<string, string | number | boolean | undefined>;
-  /** Headers extras. `Content-Type: application/json` já é setado quando há body. */
   headers?: Record<string, string>;
-  /** Passado direto para `fetch(..., { cache })`. Default: `no-store` para segurança. */
   cache?: RequestCache;
-  /** Passado direto para `fetch(..., { next })`. Útil para ISR / revalidateTag. */
   next?: { revalidate?: number | false; tags?: string[] };
-  /** Timeout em ms (default 10s). */
   timeoutMs?: number;
-  /** Se true, não lança erro em respostas não-2xx — retorna Response cru. */
   raw?: boolean;
+  /** Se true, não injeta Authorization e não tenta refresh no 401. */
+  skipAuth?: boolean;
+  /** Uso interno da lógica de retry para não recursar mais de uma vez. */
+  _isRetry?: boolean;
 }
 
 function buildUrl(path: string, query?: RequestOptions['query']): string {
@@ -32,17 +30,36 @@ function buildUrl(path: string, query?: RequestOptions['query']): string {
 }
 
 /**
- * Cliente HTTP tipado para consumir a API Petzo (`apps/api`).
+ * Tenta renovar o access token via /auth/refresh (usa o cookie httpOnly).
+ * Se falhar, limpa a sessão. Retorna o novo access token, ou null.
+ */
+async function tryRefresh(): Promise<string | null> {
+  const url = new URL('/auth/refresh', env.NEXT_PUBLIC_API_URL).toString();
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { Accept: 'application/json' },
+    });
+    if (!res.ok) throw new Error(`refresh ${res.status}`);
+    const data = (await res.json()) as {
+      user: import('@/features/auth/store').AuthUser;
+      accessToken: string;
+    };
+    useAuthStore.getState().setSession({ user: data.user, accessToken: data.accessToken });
+    return data.accessToken;
+  } catch {
+    useAuthStore.getState().clearSession();
+    return null;
+  }
+}
+
+/**
+ * Cliente HTTP tipado para consumir a API Petzo.
  *
- * - Sempre passa por HTTP REST (nunca acessa DB direto).
- * - Lança `HttpError` para respostas != 2xx (contendo status/code/message).
- * - Lança `NetworkError` para falhas antes da resposta (offline, timeout).
- * - Serializa/deserializa JSON automaticamente.
- * - Pode ser chamado tanto em Server Components (fetch nativo do Next) quanto em Client Components.
- *
- * @example
- * const products = await http<Product[]>('/products', { query: { page: 1 } });
- * const created = await http<Order>('/orders', { method: 'POST', body: dto });
+ * - Injeta `Authorization: Bearer <accessToken>` automaticamente (opt-out via skipAuth).
+ * - `credentials: 'include'` — envia cookies (necessário para refresh token).
+ * - No 401 (com token), tenta refresh uma vez e refaz o request.
  */
 export async function http<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const {
@@ -54,16 +71,22 @@ export async function http<T>(path: string, options: RequestOptions = {}): Promi
     next,
     timeoutMs = 10_000,
     raw = false,
+    skipAuth = false,
+    _isRetry = false,
   } = options;
+
+  const accessToken = skipAuth ? null : useAuthStore.getState().accessToken;
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   const init: RequestInit = {
     method,
+    credentials: 'include',
     headers: {
       Accept: 'application/json',
       ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...headers,
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -86,13 +109,21 @@ export async function http<T>(path: string, options: RequestOptions = {}): Promi
 
   if (raw) return res as unknown as T;
 
+  // 401 + tinha access token → tentar refresh e refazer 1x
+  if (res.status === 401 && !skipAuth && !_isRetry && accessToken) {
+    const newAccessToken = await tryRefresh();
+    if (newAccessToken) {
+      return http<T>(path, { ...options, _isRetry: true });
+    }
+  }
+
   if (!res.ok) {
     type ApiErrorPayload = { message?: string; code?: string; details?: unknown };
     let payload: ApiErrorPayload = {};
     try {
       payload = (await res.json()) as ApiErrorPayload;
     } catch {
-      // resposta sem corpo JSON — usa fallback abaixo
+      // sem body JSON
     }
     throw new HttpError({
       status: res.status,
@@ -102,8 +133,6 @@ export async function http<T>(path: string, options: RequestOptions = {}): Promi
     });
   }
 
-  // 204 No Content
   if (res.status === 204) return undefined as T;
-
   return (await res.json()) as T;
 }

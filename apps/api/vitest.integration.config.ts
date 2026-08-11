@@ -12,6 +12,9 @@ export default defineConfig({
     include: ['src/**/*.integration.spec.ts'],
     testTimeout: 15_000,
     hookTimeout: 15_000,
+    // Integration tests compartilham o Postgres — rodar 1 arquivo por vez
+    // evita corrida em contadores de estoque, cart entre specs, etc.
+    fileParallelism: false,
   },
   resolve: {
     alias: {

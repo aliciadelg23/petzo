@@ -15,12 +15,17 @@ import {
   PaymentStatus,
   SubscriptionFrequency,
 } from '@prisma/client';
+import argon2 from 'argon2';
 
 const prisma = new PrismaClient();
 
-/** Placeholder — não é um argon2/bcrypt real, apenas ocupa a coluna. */
-const PLACEHOLDER_HASH =
-  '$argon2id$v=19$m=65536,t=3,p=4$SEED_PLACEHOLDER_NOT_A_REAL_HASH_DO_NOT_USE_IN_PROD';
+/**
+ * Senha real de todos os dev users: "Password!1"
+ * Hash gerado uma vez e reutilizado no seed. Rodar `pnpm --filter @petzo/api db:seed`
+ * regera o hash a cada execução (custo O(usuários) mas seed é raro).
+ */
+const DEV_PASSWORD = 'Password!1';
+const DEV_HASH_PROMISE = argon2.hash(DEV_PASSWORD, { type: argon2.argon2id });
 
 async function main() {
   console.log('[seed] iniciando…');
@@ -28,7 +33,7 @@ async function main() {
   // ---------------------------------------------------------------------------
   // Roles
   // ---------------------------------------------------------------------------
-  const [customerRole, adminRole, supportRole] = await Promise.all([
+  const [customerRole, adminRole, staffRole] = await Promise.all([
     prisma.role.upsert({
       where: { name: RoleName.CUSTOMER },
       update: {},
@@ -40,12 +45,12 @@ async function main() {
       create: { name: RoleName.ADMIN },
     }),
     prisma.role.upsert({
-      where: { name: RoleName.SUPPORT },
+      where: { name: RoleName.STAFF },
       update: {},
-      create: { name: RoleName.SUPPORT },
+      create: { name: RoleName.STAFF },
     }),
   ]);
-  console.log('[seed] roles:', { customerRole: customerRole.id, adminRole: adminRole.id, supportRole: supportRole.id });
+  console.log('[seed] roles:', { customerRole: customerRole.id, adminRole: adminRole.id, staffRole: staffRole.id });
 
   // ---------------------------------------------------------------------------
   // Users
@@ -56,7 +61,7 @@ async function main() {
     create: {
       email: 'admin@petzo.test',
       name: 'Ana Administradora',
-      passwordHash: PLACEHOLDER_HASH,
+      passwordHash: await DEV_HASH_PROMISE,
       phone: '+55 11 90000-0001',
       emailVerifiedAt: new Date(),
       roleId: adminRole.id,
@@ -69,7 +74,7 @@ async function main() {
     create: {
       email: 'alice.dev@petzo.test',
       name: 'Alice Dev',
-      passwordHash: PLACEHOLDER_HASH,
+      passwordHash: await DEV_HASH_PROMISE,
       phone: '+55 11 90000-0002',
       emailVerifiedAt: new Date(),
       roleId: customerRole.id,
@@ -82,23 +87,23 @@ async function main() {
     create: {
       email: 'bruno.dev@petzo.test',
       name: 'Bruno Dev',
-      passwordHash: PLACEHOLDER_HASH,
+      passwordHash: await DEV_HASH_PROMISE,
       phone: '+55 21 90000-0003',
       roleId: customerRole.id,
     },
   });
 
-  const support = await prisma.user.upsert({
-    where: { email: 'suporte@petzo.test' },
+  const staff = await prisma.user.upsert({
+    where: { email: 'staff@petzo.test' },
     update: {},
     create: {
-      email: 'suporte@petzo.test',
-      name: 'Sam Suporte',
-      passwordHash: PLACEHOLDER_HASH,
-      roleId: supportRole.id,
+      email: 'staff@petzo.test',
+      name: 'Sam Staff',
+      passwordHash: await DEV_HASH_PROMISE,
+      roleId: staffRole.id,
     },
   });
-  console.log('[seed] users:', { admin: admin.id, alice: alice.id, bruno: bruno.id, support: support.id });
+  console.log('[seed] users:', { admin: admin.id, alice: alice.id, bruno: bruno.id, staff: staff.id });
 
   // ---------------------------------------------------------------------------
   // Addresses
