@@ -4,6 +4,25 @@ Todas as mudanças notáveis são registradas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.0.4] — 2026-08-11
+
+### Corrigido
+
+- **CI — resolução IPv6 do `localhost`**: no runner do GitHub Actions
+  o `/etc/hosts` mapeia tanto `127.0.0.1 localhost` quanto
+  `::1 localhost ip6-localhost`. Node 18+ pode devolver o IPv6 primeiro
+  em `dns.lookup('localhost')`. O container do service Redis só escuta
+  em IPv4, então o `ioredis` do `RedisCache` tentava conectar em
+  `[::1]:6379`, ficava preso na offline-queue e todos os comandos
+  falhavam silenciosamente com `[cache] redis error (degrading to miss):`
+  de mensagem vazia. Os 4 testes de `cache.integration.spec.ts` que
+  dependem de HIT real ou de `smembers`/`del` falhavam (2 por assert,
+  2 por timeout de 15s).
+  Substituído `localhost` por `127.0.0.1` no `DATABASE_URL`,
+  `REDIS_URL` e no step de readiness — garante IPv4 direto sem passar
+  pelo resolver do Node. Mesmo tratamento no Postgres por consistência
+  (o driver `pg` também poderia sofrer da mesma armadilha).
+
 ## [1.0.3] — 2026-08-11
 
 ### Corrigido
