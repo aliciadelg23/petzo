@@ -1,3 +1,7 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+// @ts-nocheck — recharts 2.15 types conflitam com @types/react 19 (forçado
+// pelo override do workspace). Runtime OK; reverter quando recharts publicar
+// tipos compatíveis com React 19 (issue recharts#4795).
 'use client';
 
 // CLIENT — Recharts trabalha só no browser (SVG + hooks internos).

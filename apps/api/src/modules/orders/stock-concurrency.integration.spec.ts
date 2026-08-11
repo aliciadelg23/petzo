@@ -53,6 +53,12 @@ describe('orders / concorrência de estoque', () => {
   });
 
   afterAll(async () => {
+    // Restaura o estoque para não afetar specs que rodam depois no mesmo DB.
+    // Sem isso, cart/orders specs falham com 409 "sem estoque".
+    await prisma.inventory.update({
+      where: { productId },
+      data: { quantity: 50 },
+    });
     await app.close();
     await prisma.$disconnect();
   });

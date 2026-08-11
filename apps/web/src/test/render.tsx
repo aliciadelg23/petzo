@@ -13,6 +13,8 @@ import type { ReactElement } from 'react';
 import { render } from '@testing-library/react';
 import type { RenderOptions, RenderResult } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ToastProvider } from '@/providers/toast-provider';
+import { ToastContainer } from '@/components/ui/toast-container';
 
 export function createTestQueryClient(): QueryClient {
   return new QueryClient({
@@ -34,7 +36,12 @@ export function renderWithProviders(
 ): RenderResult & { queryClient: QueryClient } {
   const qc = options?.queryClient ?? createTestQueryClient();
   const Wrapper: any = ({ children }: { children: unknown }) => (
-    <QueryClientProvider client={qc}>{children as any}</QueryClientProvider>
+    <QueryClientProvider client={qc}>
+      <ToastProvider>
+        {children as any}
+        <ToastContainer />
+      </ToastProvider>
+    </QueryClientProvider>
   );
   const result = render(ui as any, { wrapper: Wrapper, ...options });
   return Object.assign(result, { queryClient: qc });

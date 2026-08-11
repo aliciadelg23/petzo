@@ -71,13 +71,15 @@ describe('e-commerce advanced / integração', () => {
     it('POST /wishlist/:productId é idempotente', async () => {
       const r1 = await app.inject({
         method: 'POST',
-        url: `/wishlist/${productA.id}`,
+        url: `/wishlist/items`,
+        payload: { productId: productA.id },
         headers: { authorization: `Bearer ${brunoToken}` },
       });
       expect(r1.statusCode).toBe(200);
       const r2 = await app.inject({
         method: 'POST',
-        url: `/wishlist/${productA.id}`,
+        url: `/wishlist/items`,
+        payload: { productId: productA.id },
         headers: { authorization: `Bearer ${brunoToken}` },
       });
       expect(r2.statusCode).toBe(200);
@@ -88,7 +90,8 @@ describe('e-commerce advanced / integração', () => {
     it('POST com productId inexistente → 404', async () => {
       const r = await app.inject({
         method: 'POST',
-        url: '/wishlist/nao-existe-xyz',
+        url: '/wishlist/items',
+        payload: { productId: 'nao-existe-xyz' },
         headers: { authorization: `Bearer ${brunoToken}` },
       });
       expect(r.statusCode).toBe(404);
@@ -97,18 +100,19 @@ describe('e-commerce advanced / integração', () => {
     it('DELETE remove; deleto duas vezes não erra (idempotente)', async () => {
       await app.inject({
         method: 'POST',
-        url: `/wishlist/${productB.id}`,
+        url: '/wishlist/items',
+        payload: { productId: productB.id },
         headers: { authorization: `Bearer ${brunoToken}` },
       });
       const r1 = await app.inject({
         method: 'DELETE',
-        url: `/wishlist/${productB.id}`,
+        url: `/wishlist/items/${productB.id}`,
         headers: { authorization: `Bearer ${brunoToken}` },
       });
       expect(r1.statusCode).toBe(200);
       const r2 = await app.inject({
         method: 'DELETE',
-        url: `/wishlist/${productB.id}`,
+        url: `/wishlist/items/${productB.id}`,
         headers: { authorization: `Bearer ${brunoToken}` },
       });
       expect(r2.statusCode).toBe(200);

@@ -7,6 +7,11 @@ import { AuthHydrator } from '@/providers/AuthHydrator';
 
 export default function RootLayout() {
   return (
+    // O override global de @types/react no monorepo é 19 (necessário para
+    // testing-library@16 no web). Mobile roda em React 18.3 e o typedef de
+    // GestureHandlerRootView casa com React 18. Divergência puramente de
+    // tipos — runtime OK. Mais fácil suprimir aqui do que quebrar o override.
+    // @ts-expect-error React 18 (mobile) vs @types/react 19 (workspace override)
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <QueryProvider>
