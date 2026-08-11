@@ -10,10 +10,16 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../app';
+import { env } from '../config/env';
 import { prisma } from './prisma';
 import { RedisCache, stableKey } from './cache';
 
-const REDIS_URL = 'redis://localhost:6380';
+// Lê a URL do env — respeita o valor de cada ambiente:
+//   - dev local (docker-compose):   redis://localhost:6380
+//   - CI (GitHub Actions service):  redis://127.0.0.1:6379
+// Antes estava hardcoded em 6380 e o spec falhava em qualquer ambiente
+// que não fosse o compose local (silent degrade + timeouts no CI).
+const REDIS_URL = env.REDIS_URL;
 
 describe('cache / integração com Redis', () => {
   describe('RedisCache direto', () => {
