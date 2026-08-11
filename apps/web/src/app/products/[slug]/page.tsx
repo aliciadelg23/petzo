@@ -59,7 +59,10 @@ export default async function ProductPage({ params }: Props) {
   const product = await safeGet(slug);
   if (!product) notFound();
 
-  const siteUrl = env.NEXT_PUBLIC_API_URL.replace(/\/$/, ''); // placeholder; em prod usaria NEXT_PUBLIC_SITE_URL
+  // SEO usa a URL do SITE (do storefront), não da API. Motores indexam
+  // páginas do site — apontar canonical/JSON-LD para a API quebra
+  // rastreamento e reduz relevância.
+  const siteUrl = env.NEXT_PUBLIC_SITE_URL;
   const canonical = `${siteUrl}/products/${product.slug}`;
 
   return (

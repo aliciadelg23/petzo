@@ -72,12 +72,17 @@ services:
       args:
         # Baked no bundle do Next em build-time (variáveis NEXT_PUBLIC_*).
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3333}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
     restart: unless-stopped
     depends_on:
       api:
         condition: service_healthy
     env_file:
       - ../.env
+    environment:
+      # SSR/RSC do Next dentro do compose fala com a API pelo hostname
+      # interno da rede — nunca pelo host mapeado.
+      INTERNAL_API_URL: http://api:3333
     ports:
       - "${WEB_HOST_PORT:-3000}:3000"
 

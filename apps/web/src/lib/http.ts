@@ -1,6 +1,16 @@
-import { env } from '@/config/env';
+import { env, serverApiUrl } from '@/config/env';
 import { HttpError, NetworkError } from '@/lib/errors';
 import { useAuthStore } from '@/features/auth/store';
+
+/**
+ * Base URL da API por ambiente:
+ * - Server (RSC / route handlers): usa `serverApiUrl` — respeita
+ *   INTERNAL_API_URL quando presente (compose network).
+ * - Browser: sempre `NEXT_PUBLIC_API_URL` (host visível ao usuário).
+ * Detecção: `typeof window === 'undefined'` → server.
+ */
+const apiBase: string =
+  typeof window === 'undefined' ? serverApiUrl : env.NEXT_PUBLIC_API_URL;
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
@@ -20,7 +30,7 @@ interface RequestOptions {
 }
 
 function buildUrl(path: string, query?: RequestOptions['query']): string {
-  const url = new URL(path.startsWith('/') ? path : `/${path}`, env.NEXT_PUBLIC_API_URL);
+  const url = new URL(path.startsWith('/') ? path : `/${path}`, apiBase);
   if (query) {
     for (const [k, v] of Object.entries(query)) {
       if (v !== undefined) url.searchParams.set(k, String(v));
@@ -34,7 +44,7 @@ function buildUrl(path: string, query?: RequestOptions['query']): string {
  * Se falhar, limpa a sessão. Retorna o novo access token, ou null.
  */
 async function tryRefresh(): Promise<string | null> {
-  const url = new URL('/auth/refresh', env.NEXT_PUBLIC_API_URL).toString();
+  const url = new URL('/auth/refresh', apiBase).toString();
   try {
     const res = await fetch(url, {
       method: 'POST',
